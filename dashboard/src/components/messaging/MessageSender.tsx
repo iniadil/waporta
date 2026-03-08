@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   TabGroup, TabList, Tab, TabPanels, TabPanel,
-  Listbox, ListboxButton, ListboxOption, ListboxOptions,
   Field, Label, Textarea,
 } from '@headlessui/react'
 import { Button } from '../ui/Button'
@@ -62,78 +61,35 @@ export function MessageSender({ sessions }: Props) {
   )
 
   return (
-    <TabGroup selectedIndex={tabIndex} onChange={setTabIndex}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>SESSION</label>
+          <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} style={{ width: '100%' }}>
+            <option value="">-- select session --</option>
+            {sessions.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <Input
+          label="TO (phone or JID)"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          placeholder="6281234567890"
+        />
+      </div>
+
+      <TabGroup selectedIndex={tabIndex} onChange={setTabIndex}>
         <TabList style={{ display: 'flex', flexWrap: 'wrap' }}>
           {tabs.map((t, i) => (
             <Tab key={t} style={tabStyle(tabIndex === i)}>{t}</Tab>
           ))}
         </TabList>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <Listbox value={sessionId} onChange={setSessionId}>
-            <Field style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <Label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>SESSION</Label>
-              <div style={{ position: 'relative' }}>
-                <ListboxButton style={{
-                  width: '100%',
-                  background: 'var(--bg)',
-                  border: '1px solid var(--border-bright)',
-                  color: sessionId ? 'var(--text-bright)' : 'var(--text-dim)',
-                  padding: '6px 30px 6px 10px',
-                  fontSize: 13,
-                  fontFamily: 'IBM Plex Mono, monospace',
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                }}>
-                  {sessionId || '-- select session --'}
-                </ListboxButton>
-                <ListboxOptions style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  zIndex: 50,
-                  background: 'var(--bg-panel)',
-                  border: '1px solid var(--border-bright)',
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: 0,
-                  maxHeight: 160,
-                  overflowY: 'auto',
-                }}>
-                  {sessions.length === 0 ? (
-                    <li style={{ padding: '8px 12px', color: 'var(--text-dim)', fontSize: 12 }}>No sessions</li>
-                  ) : sessions.map((s) => (
-                    <ListboxOption
-                      key={s}
-                      value={s}
-                      style={({ focus, selected }) => ({
-                        padding: '7px 12px',
-                        fontSize: 12,
-                        cursor: 'pointer',
-                        color: selected ? 'var(--amber)' : focus ? 'var(--text-bright)' : 'var(--text)',
-                        background: focus ? 'var(--bg-hover)' : 'transparent',
-                      })}
-                    >
-                      {s}
-                    </ListboxOption>
-                  ))}
-                </ListboxOptions>
-              </div>
-            </Field>
-          </Listbox>
-
-          <Input
-            label="TO (phone or JID)"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder="6281234567890"
-          />
-        </div>
-
         <TabPanels>
-          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
             <Field style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>MESSAGE</Label>
               <Textarea
@@ -156,7 +112,7 @@ export function MessageSender({ sessions }: Props) {
             </Field>
           </TabPanel>
 
-          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
             <Input label="MEDIA URL OR BASE64" value={media} onChange={(e) => setMedia(e.target.value)} placeholder="https://..." />
             <Field style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>CAPTION (optional)</Label>
@@ -179,7 +135,7 @@ export function MessageSender({ sessions }: Props) {
             </Field>
           </TabPanel>
 
-          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <TabPanel style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
             <Input label="MEDIA URL OR BASE64" value={media} onChange={(e) => setMedia(e.target.value)} placeholder="https://..." />
             <Input label="FILENAME" value={filename} onChange={(e) => setFilename(e.target.value)} placeholder="document.pdf" />
             <Field style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -203,36 +159,36 @@ export function MessageSender({ sessions }: Props) {
             </Field>
           </TabPanel>
         </TabPanels>
+      </TabGroup>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <input
-            type="checkbox"
-            id="isGroup"
-            checked={isGroup}
-            onChange={(e) => setIsGroup(e.target.checked)}
-            style={{ accentColor: 'var(--amber)' }}
-          />
-          <label htmlFor="isGroup" style={{ fontSize: 11, color: 'var(--text-dim)', cursor: 'pointer' }}>
-            GROUP MESSAGE
-          </label>
-        </div>
-
-        <Button onClick={handleSend} disabled={loading || !canSend}>
-          {loading ? 'SENDING...' : 'SEND MESSAGE'}
-        </Button>
-
-        {result && (
-          <div style={{
-            padding: '10px 14px',
-            border: `1px solid ${result.ok ? 'var(--green-dim)' : 'var(--red-dim)'}`,
-            color: result.ok ? 'var(--green)' : 'var(--red)',
-            background: result.ok ? 'rgba(0,255,135,0.03)' : 'rgba(255,59,48,0.03)',
-            fontSize: 12,
-          }}>
-            {result.ok ? '✓ ' : '✗ '}{result.msg}
-          </div>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <input
+          type="checkbox"
+          id="isGroup"
+          checked={isGroup}
+          onChange={(e) => setIsGroup(e.target.checked)}
+          style={{ accentColor: 'var(--amber)' }}
+        />
+        <label htmlFor="isGroup" style={{ fontSize: 11, color: 'var(--text-dim)', cursor: 'pointer' }}>
+          GROUP MESSAGE
+        </label>
       </div>
-    </TabGroup>
+
+      <Button onClick={handleSend} disabled={loading || !canSend}>
+        {loading ? 'SENDING...' : 'SEND MESSAGE'}
+      </Button>
+
+      {result && (
+        <div style={{
+          padding: '10px 14px',
+          border: `1px solid ${result.ok ? 'var(--green-dim)' : 'var(--red-dim)'}`,
+          color: result.ok ? 'var(--green)' : 'var(--red)',
+          background: result.ok ? 'rgba(0,255,135,0.03)' : 'rgba(255,59,48,0.03)',
+          fontSize: 12,
+        }}>
+          {result.ok ? '✓ ' : '✗ '}{result.msg}
+        </div>
+      )}
+    </div>
   )
 }
