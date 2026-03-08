@@ -6,6 +6,9 @@ out
 dist
 *.tgz
 
+# generated OpenAPI spec
+openapi.json
+
 # code coverage
 coverage
 *.lcov

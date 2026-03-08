@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc",
-    "start": "npm run build && node dist/index.js"
+    "start": "npm run build && node dist/index.js",
+    "gen:swagger": "tsx scripts/gen-swagger.ts"
   },
   "devDependencies": {
     "@types/node": "^22",
@@ -14,8 +15,11 @@
   },
   "dependencies": {
     "@hono/node-server": "^1",
+    "@hono/swagger-ui": "^0.6.0",
+    "@hono/zod-openapi": "^1.2.2",
     "hono": "^4.12.5",
-    "wa-multi-session": "/Volumes/Adil/Workspace/dev/playground/wa-multi-session"
+    "wa-multi-session": "/Volumes/Adil/Workspace/dev/playground/wa-multi-session",
+    "zod": "^4.3.6"
   },
   "trustedDependencies": [
     "baileys",
