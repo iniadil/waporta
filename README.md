@@ -1,6 +1,6 @@
 # waporta
 
-REST API and Dashboard UI for WhatsApp Gateway, built with [Hono](https://hono.dev), [wa-multi-session](https://github.com/deniandreawan/wa-multi-session), and React.
+REST API and Dashboard UI for WhatsApp Gateway, built with [Hono](https://hono.dev), [wa-multi-session](https://github.com/mimamch/wa-multi-session), and React.
 
 ## Prerequisites
 
