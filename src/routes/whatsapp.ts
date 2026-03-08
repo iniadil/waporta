@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import wa from '../wa.js'
+import { setPendingSession, getQR } from '../events.js'
 
 const app = new OpenAPIHono()
 
@@ -55,8 +56,35 @@ app.openapi(
   }),
   async (c) => {
     const { sessionId } = c.req.valid('param')
+    setPendingSession(sessionId)
     await wa.startSession(sessionId)
     return c.json({ status: 'starting', sessionId })
+  }
+)
+
+// Get QR code for a session
+app.openapi(
+  createRoute({
+    method: 'get',
+    path: '/sessions/{sessionId}/qr',
+    tags: ['Sessions'],
+    summary: 'Get QR code for a session',
+    request: { params: SessionIdParam },
+    responses: {
+      200: {
+        description: 'QR code data',
+        content: {
+          'application/json': {
+            schema: z.object({ qr: z.string().nullable() }),
+          },
+        },
+      },
+    },
+  }),
+  async (c) => {
+    const { sessionId } = c.req.valid('param')
+    const qr = getQR(sessionId)
+    return c.json({ qr })
   }
 )
 

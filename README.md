@@ -1,6 +1,6 @@
 # wa-gateway
 
-REST API untuk WhatsApp Gateway berbasis [Hono](https://hono.dev) dan [wa-multi-session](https://github.com/deniandreawan/wa-multi-session), dijalankan dengan Node.js.
+REST API dan Dashboard UI untuk WhatsApp Gateway, berbasis [Hono](https://hono.dev), [wa-multi-session](https://github.com/deniandreawan/wa-multi-session), dan React.
 
 ## Prasyarat
 
@@ -25,36 +25,73 @@ npm install
 ./node_modules/.bin/tsc
 ```
 
-## Menjalankan Server
+## Menjalankan
+
+### API saja
 
 ```bash
-npm start
+npm run dev       # development dengan auto-reload
+npm run start     # production (build + run)
 ```
 
-Untuk development dengan auto-reload:
-
-```bash
-npm run dev
-```
-
-Server berjalan di `http://localhost:3000`. Port bisa diubah via environment variable:
+Server berjalan di `http://localhost:3000`. Port bisa diubah via env:
 
 ```bash
 PORT=8080 npm start
 ```
 
+### API + Dashboard (development)
+
+```bash
+npm run dev:all
+```
+
+Atau jalankan di dua terminal terpisah:
+
+```bash
+npm run dev            # backend  → http://localhost:3000
+npm run dashboard:dev  # frontend → http://localhost:5173
+```
+
+### API + Dashboard (production)
+
+```bash
+npm run dashboard:build
+npm run start
+```
+
+Dashboard tersedia di `http://localhost:3000/dashboard`.
+
+## Dashboard
+
+Dashboard UI untuk mengelola session, mengirim pesan, dan cek nomor — tanpa perlu Swagger atau curl.
+
+**Stack**: React + Vite, Headless UI v2, IBM Plex Mono — dark terminal aesthetic.
+
+| Halaman | Fungsi |
+|---------|--------|
+| Overview | Statistik session + quick actions |
+| Sessions | Buat session (QR / Pairing Code), hapus session |
+| Messaging | Kirim teks, gambar, atau dokumen |
+| Checker | Cek apakah nomor terdaftar di WhatsApp |
+
+QR code tampil langsung di browser — dashboard polling `/sessions/:sessionId/qr` setiap 2 detik secara otomatis.
+
 ## API Endpoints
 
 Base URL: `http://localhost:3000/api/whatsapp`
+
+Dokumentasi interaktif tersedia di `http://localhost:3000/doc` (Swagger UI).
 
 ### Session
 
 | Method | Path | Deskripsi |
 |--------|------|-----------|
-| `GET` | `/sessions` | List semua session aktif |
-| `POST` | `/sessions/:sessionId` | Mulai session baru (scan QR di terminal) |
-| `POST` | `/sessions/:sessionId/pairing-code` | Mulai session baru via pairing code |
+| `GET` | `/sessions` | List semua session |
+| `POST` | `/sessions/:sessionId` | Mulai session baru |
+| `POST` | `/sessions/:sessionId/pairing-code` | Mulai session via pairing code |
 | `GET` | `/sessions/:sessionId` | Status session |
+| `GET` | `/sessions/:sessionId/qr` | QR code session (polling) |
 | `DELETE` | `/sessions/:sessionId` | Hapus & logout session |
 
 ### Pesan
@@ -69,9 +106,9 @@ Base URL: `http://localhost:3000/api/whatsapp`
 
 | Method | Path | Deskripsi |
 |--------|------|-----------|
-| `GET` | `/check?sessionId=&to=` | Cek apakah nomor terdaftar di WA |
+| `GET` | `/check?sessionId=&to=` | Cek nomor terdaftar di WA |
 
-## Contoh Penggunaan
+## Contoh Penggunaan (curl)
 
 **Mulai session baru**
 
@@ -79,7 +116,11 @@ Base URL: `http://localhost:3000/api/whatsapp`
 curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session
 ```
 
-Scan QR code yang muncul di terminal.
+Scan QR via dashboard atau ambil langsung dari endpoint:
+
+```bash
+curl http://localhost:3000/api/whatsapp/sessions/my-session/qr
+```
 
 **Mulai session via pairing code**
 
@@ -88,8 +129,6 @@ curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/pairing-code
   -H "Content-Type: application/json" \
   -d '{"phoneNumber": "628123456789"}'
 ```
-
-Response berisi pairing code yang harus dimasukkan di WhatsApp → Perangkat Tertaut → Tautkan dengan nomor telepon:
 
 ```json
 {
@@ -112,7 +151,7 @@ curl -X POST http://localhost:3000/api/whatsapp/send/text \
 ```bash
 curl -X POST http://localhost:3000/api/whatsapp/send/image \
   -H "Content-Type: application/json" \
-  -d '{"sessionId": "my-session", "to": "6281234567890", "media": "https://example.com/image.jpg", "text": "Caption gambar"}'
+  -d '{"sessionId": "my-session", "to": "6281234567890", "media": "https://example.com/image.jpg", "text": "Caption"}'
 ```
 
 **Kirim dokumen**
@@ -137,6 +176,6 @@ curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session
 
 ## Catatan
 
-- Format nomor telepon: gunakan kode negara tanpa `+`, contoh `6281234567890`
-- Untuk group, tambahkan `"isGroup": true` pada body request
+- Format nomor telepon: kode negara tanpa `+`, contoh `6281234567890`
+- Untuk pesan ke group, tambahkan `"isGroup": true` pada body request
 - Credentials session disimpan otomatis di SQLite (`baileys_store.db`)
