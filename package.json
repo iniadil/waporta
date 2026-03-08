@@ -1,5 +1,6 @@
 {
-  "name": "wa-gateway",
+  "name": "waporta",
+  "version": "1.0.1",
   "type": "module",
   "private": true,
   "scripts": {
