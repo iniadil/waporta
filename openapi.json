@@ -1,0 +1,545 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "WA Porta API",
+    "version": "1.0.3",
+    "description": "WhatsApp Gateway REST API powered by Baileys"
+  },
+  "components": {
+    "schemas": {},
+    "parameters": {}
+  },
+  "paths": {
+    "/api/whatsapp/sessions": {
+      "get": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "List all sessions",
+        "responses": {
+          "200": {
+            "description": "List of session IDs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "sessions"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/sessions/{sessionId}": {
+      "post": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Start a new session",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session starting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sessionId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Delete a session",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sessionId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Get session status",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Session info",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "session": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "nullable": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "session"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Session not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/sessions/{sessionId}/qr": {
+      "get": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Get QR code for a session",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "QR code data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "qr": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "qr"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/sessions/{sessionId}/pairing-code": {
+      "post": {
+        "tags": [
+          "Sessions"
+        ],
+        "summary": "Start a session with pairing code",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "phoneNumber": {
+                    "type": "string",
+                    "example": "6281234567890"
+                  }
+                },
+                "required": [
+                  "phoneNumber"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pairing code generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "pairingCode": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "sessionId",
+                    "pairingCode"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/send/text": {
+      "post": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "Send a text message",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "example": "my-session"
+                  },
+                  "to": {
+                    "type": "string",
+                    "example": "6281234567890"
+                  },
+                  "text": {
+                    "type": "string",
+                    "example": "Hello!"
+                  },
+                  "isGroup": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "sessionId",
+                  "to",
+                  "text"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Message sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/send/image": {
+      "post": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "Send an image",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "example": "my-session"
+                  },
+                  "to": {
+                    "type": "string",
+                    "example": "6281234567890"
+                  },
+                  "media": {
+                    "type": "string",
+                    "description": "URL or base64 of image"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "isGroup": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "sessionId",
+                  "to",
+                  "media"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Image sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/send/document": {
+      "post": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "Send a document",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "sessionId": {
+                    "type": "string",
+                    "example": "my-session"
+                  },
+                  "to": {
+                    "type": "string",
+                    "example": "6281234567890"
+                  },
+                  "media": {
+                    "type": "string",
+                    "description": "URL or base64 of document"
+                  },
+                  "filename": {
+                    "type": "string",
+                    "example": "document.pdf"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "isGroup": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "sessionId",
+                  "to",
+                  "media",
+                  "filename"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Document sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/check": {
+      "get": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "Check if a number exists on WhatsApp",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "6281234567890"
+            },
+            "required": true,
+            "name": "to",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "false"
+            },
+            "required": false,
+            "name": "isGroup",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Check result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exists": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "exists"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -7,7 +7,7 @@ dist
 *.tgz
 
 # generated OpenAPI spec
-openapi.json
+#openapi.json
 
 # code coverage
 coverage
