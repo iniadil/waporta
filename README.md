@@ -20,9 +20,87 @@ Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets
 
 ## Prerequisites
 
-- Node.js v18+
+- Node.js v18+, **or** Docker + Docker Compose (for containerized deployment)
 
-## Setup
+## Docker (Production — Recommended)
+
+The easiest way to run waporta in production is with Docker Compose. Session data is persisted via bind-mounted volumes so it survives restarts and upgrades.
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/iniadil/waporta.git
+cd waporta
+```
+
+**2. Create the data directory**
+
+```bash
+mkdir -p data/wa_credentials
+```
+
+**3. Start the container**
+
+```bash
+docker compose up -d
+```
+
+The API and dashboard are available at `http://localhost:3000`.
+
+**Override the port**
+
+```bash
+PORT=8080 docker compose up -d
+```
+
+**View logs**
+
+```bash
+docker compose logs -f
+```
+
+**Stop**
+
+```bash
+docker compose down
+```
+
+**Upgrade to a newer version**
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+### Persistent data
+
+| Host path               | Container path            | Contents                        |
+| ----------------------- | ------------------------- | ------------------------------- |
+| `./data/baileys_store.db` | `/app/baileys_store.db` | SQLite session store            |
+| `./data/wa_credentials`   | `/app/wa_credentials`   | WhatsApp credential files       |
+
+> Back up the `./data` directory to preserve sessions across host migrations.
+
+### Without Docker Compose
+
+```bash
+# Build the image
+docker build -t waporta .
+
+# Run the container
+docker run -d \
+  --name waporta \
+  -p 3000:3000 \
+  -v $(pwd)/data/baileys_store.db:/app/baileys_store.db \
+  -v $(pwd)/data/wa_credentials:/app/wa_credentials \
+  -e NODE_ENV=production \
+  --restart unless-stopped \
+  waporta
+```
+
+---
+
+## Setup (without Docker)
 
 **1. Clone the repository**
 
