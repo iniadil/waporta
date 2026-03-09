@@ -12,7 +12,17 @@ Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets
 
 ## Quick Start
 
-From zero to sending messages in 4 steps.
+**One command to install and run:**
+
+```bash
+curl -fsSL https://storage.iniadil.dev/wa-porta/install.sh | sh
+```
+
+The script clones the repo, asks for your dashboard credentials, and starts the containers. Done.
+
+---
+
+**Or set it up manually in 4 steps:**
 
 **1. Run**
 
