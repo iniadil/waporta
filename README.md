@@ -35,7 +35,13 @@ docker compose up -d
 
 **2. Get an API key**
 
-Open `http://localhost:3000/dashboard` → log in → **API Keys** → enter a name → **Generate** → copy the key (shown once).
+Option A — set a static key in `.env` before starting:
+
+```env
+DEFAULT_API_KEY=wap_your_static_key_here
+```
+
+Option B — generate one from the dashboard: open `http://localhost:3000/dashboard` → log in → **API Keys** → enter a name → **Generate** → copy the key (shown once).
 
 **3. Connect WhatsApp**
 
@@ -77,6 +83,8 @@ Edit `.env`:
 ```env
 DASHBOARD_USERNAME=admin
 DASHBOARD_PASSWORD=your-secure-password
+# Optional: skip dashboard key generation by setting a static API key
+DEFAULT_API_KEY=wap_your_static_key_here
 ```
 
 ```bash
@@ -152,7 +160,7 @@ waporta uses a dual-auth system:
 | Caller | Header | How to get |
 | ------ | ------ | ---------- |
 | Dashboard | `Authorization: Bearer <token>` | Issued on login, stored in browser |
-| REST API / external | `X-API-Key: <key>` | Generated from the dashboard → API Keys |
+| REST API / external | `X-API-Key: <key>` | Set `DEFAULT_API_KEY` in `.env`, or generate from dashboard → API Keys |
 
 All `/api/whatsapp/*` endpoints accept either. Requests without a valid credential receive `401 Unauthorized`.
 
@@ -250,3 +258,12 @@ curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session \
 - Group messages: add `"isGroup": true` to the request body
 - Session data is stored in SQLite (`baileys_store.db`)
 - API keys are stored in `data/api_keys.json`
+- `DEFAULT_API_KEY` in `.env` works without creating a key from the dashboard
+
+---
+
+## Feedback & Support
+
+Found a bug or have a feature request? [Open an issue](https://github.com/iniadil/waporta/issues) on GitHub.
+
+For direct inquiries, reach out at [me@iniadil.dev](mailto:me@iniadil.dev).

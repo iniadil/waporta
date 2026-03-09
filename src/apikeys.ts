@@ -63,5 +63,7 @@ export function deleteKey(id: string): boolean {
 }
 
 export function validateKey(key: string): boolean {
+  const defaultKey = process.env.DEFAULT_API_KEY
+  if (defaultKey && key === defaultKey) return true
   return load().some((k) => k.key === key)
 }
