@@ -11,7 +11,7 @@ function formatUptime(ms: number) {
 }
 
 export function Header() {
-  const [startTime] = useState(Date.now());
+  const [startTime] = useState(() => Date.now());
   const [uptime, setUptime] = useState("00:00:00");
 
   useEffect(() => {

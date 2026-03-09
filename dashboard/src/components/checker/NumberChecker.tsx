@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Listbox, ListboxButton, ListboxOption, ListboxOptions, Field, Label } from '@headlessui/react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { checkNumber } from '../../api/messaging'
@@ -30,15 +31,57 @@ export function NumberChecker({ sessions }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 480 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>SESSION</label>
-        <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} style={{ width: '100%' }}>
-          <option value="">-- select session --</option>
-          {sessions.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      <Listbox value={sessionId} onChange={setSessionId}>
+        <Field style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Label style={{ fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.08em' }}>SESSION</Label>
+          <ListboxButton style={{
+            width: '100%',
+            background: 'var(--bg)',
+            border: '1px solid var(--border-bright)',
+            color: sessionId ? 'var(--text-bright)' : 'var(--text-dim)',
+            padding: '6px 10px',
+            fontSize: 13,
+            fontFamily: 'IBM Plex Mono, monospace',
+            textAlign: 'left',
+            cursor: 'pointer',
+          }}>
+            {sessionId || '-- select session --'}
+          </ListboxButton>
+          <ListboxOptions
+            anchor={{ to: 'bottom start', gap: '4px' }}
+            modal={false}
+            style={{
+              zIndex: 50,
+              width: 'var(--button-width)',
+              background: 'var(--bg-panel)',
+              border: '1px solid var(--border-bright)',
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              maxHeight: 160,
+              overflowY: 'auto',
+            }}
+          >
+            {sessions.length === 0 ? (
+              <li style={{ padding: '8px 12px', color: 'var(--text-dim)', fontSize: 12 }}>No sessions available</li>
+            ) : sessions.map((s) => (
+              <ListboxOption
+                key={s}
+                value={s}
+                style={({ focus, selected }) => ({
+                  padding: '7px 12px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  color: selected ? 'var(--amber)' : focus ? 'var(--text-bright)' : 'var(--text)',
+                  background: focus ? 'var(--bg-hover)' : 'transparent',
+                })}
+              >
+                {s}
+              </ListboxOption>
+            ))}
+          </ListboxOptions>
+        </Field>
+      </Listbox>
 
       <Input
         label="PHONE NUMBER"
