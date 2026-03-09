@@ -6,6 +6,7 @@ import { OverviewPage } from '../../pages/OverviewPage'
 import { SessionsPage } from '../../pages/SessionsPage'
 import { MessagingPage } from '../../pages/MessagingPage'
 import { CheckerPage } from '../../pages/CheckerPage'
+import { ApiDocsPage } from '../../pages/ApiDocsPage'
 
 export function Shell() {
   const [page, setPage] = useState<Page>('overview')
@@ -16,6 +17,7 @@ export function Shell() {
       case 'sessions': return <SessionsPage />
       case 'messaging': return <MessagingPage />
       case 'checker': return <CheckerPage />
+      case 'api-docs': return <ApiDocsPage />
     }
   }
 
