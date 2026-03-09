@@ -3,7 +3,7 @@
   <img src="https://storage.iniadil.dev/wa-porta/waporta-github.png" alt="waporta" width="100%" />
 </picture>
 
-![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
+[![Website](https://img.shields.io/badge/website-waporta.net-black?style=flat-square)](https://waporta.net) [![Docs](https://img.shields.io/badge/docs-waporta.net-blue?style=flat-square)](https://waporta.net/docs) ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
 A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box.
 
@@ -107,11 +107,11 @@ git pull && docker compose up -d --build  # upgrade
 
 **Persistent data** (all under `./data/` on the host)
 
-| Path                      | Contents                   |
-| ------------------------- | -------------------------- |
-| `baileys_store.db`        | SQLite session store       |
-| `wa_credentials/`         | WhatsApp credential files  |
-| `api_keys.json`           | API keys                   |
+| Path               | Contents                  |
+| ------------------ | ------------------------- |
+| `baileys_store.db` | SQLite session store      |
+| `wa_credentials/`  | WhatsApp credential files |
+| `api_keys.json`    | API keys                  |
 
 > Back up `./data/` to preserve sessions and API keys across migrations.
 
@@ -160,10 +160,10 @@ npm run start      # production
 
 waporta uses a dual-auth system:
 
-| Caller | Header | How to get |
-| ------ | ------ | ---------- |
-| Dashboard | `Authorization: Bearer <token>` | Issued on login, stored in browser |
-| REST API / external | `X-API-Key: <key>` | Set `DEFAULT_API_KEY` in `.env`, or generate from dashboard → API Keys |
+| Caller              | Header                          | How to get                                                             |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------- |
+| Dashboard           | `Authorization: Bearer <token>` | Issued on login, stored in browser                                     |
+| REST API / external | `X-API-Key: <key>`              | Set `DEFAULT_API_KEY` in `.env`, or generate from dashboard → API Keys |
 
 All `/api/whatsapp/*` endpoints accept either. Requests without a valid credential receive `401 Unauthorized`.
 
@@ -186,18 +186,18 @@ QR codes are polled automatically every 2 seconds.
 ## API Reference
 
 Base URL: `http://localhost:3000/api/whatsapp`
-Interactive docs: `http://localhost:3000/doc`
+Interactive docs: [`https://waporta.net`](https://waporta.net) or `http://localhost:3000/doc`
 
 ### Sessions
 
-| Method   | Path                                | Description                      |
-| -------- | ----------------------------------- | -------------------------------- |
-| `GET`    | `/sessions`                         | List all sessions                |
-| `POST`   | `/sessions/:sessionId`              | Start a new session              |
-| `POST`   | `/sessions/:sessionId/pairing-code` | Start via pairing code           |
-| `GET`    | `/sessions/:sessionId`              | Get session status               |
-| `GET`    | `/sessions/:sessionId/qr`           | Get QR code                      |
-| `DELETE` | `/sessions/:sessionId`              | Delete and logout session        |
+| Method   | Path                                | Description               |
+| -------- | ----------------------------------- | ------------------------- |
+| `GET`    | `/sessions`                         | List all sessions         |
+| `POST`   | `/sessions/:sessionId`              | Start a new session       |
+| `POST`   | `/sessions/:sessionId/pairing-code` | Start via pairing code    |
+| `GET`    | `/sessions/:sessionId`              | Get session status        |
+| `GET`    | `/sessions/:sessionId/qr`           | Get QR code               |
+| `DELETE` | `/sessions/:sessionId`              | Delete and logout session |
 
 ### Messaging
 
@@ -209,9 +209,9 @@ Interactive docs: `http://localhost:3000/doc`
 
 ### Utilities
 
-| Method | Path                    | Description                          |
-| ------ | ----------------------- | ------------------------------------ |
-| `GET`  | `/check?sessionId=&to=` | Check if a number is on WhatsApp     |
+| Method | Path                    | Description                      |
+| ------ | ----------------------- | -------------------------------- |
+| `GET`  | `/check?sessionId=&to=` | Check if a number is on WhatsApp |
 
 ### Examples
 
@@ -267,6 +267,6 @@ curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session \
 
 ## Feedback & Support
 
-Found a bug or have a feature request? [Open an issue](https://github.com/iniadil/waporta/issues) on GitHub.
-
-For direct inquiries, reach out at [me@iniadil.dev](mailto:me@iniadil.dev).
+- Website & docs: [waporta.net](https://waporta.net)
+- Found a bug or have a feature request? [Open an issue](https://github.com/iniadil/waporta/issues) on GitHub.
+- For direct inquiries, reach out at [me@iniadil.dev](mailto:me@iniadil.dev).
