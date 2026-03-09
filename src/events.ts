@@ -1,14 +1,11 @@
 const sessionQRs = new Map<string, string>()
-let pendingQRSession: string | null = null
 
-export function setPendingSession(id: string) {
-  pendingQRSession = id
+export function setPendingSession(_id: string) {
+  // no-op: sessionId now comes directly from onQRUpdated callback
 }
 
-export function onQR(qr: string) {
-  if (pendingQRSession) {
-    sessionQRs.set(pendingQRSession, qr)
-  }
+export function onQR(sessionId: string, qr: string) {
+  sessionQRs.set(sessionId, qr)
 }
 
 export function getQR(id: string): string | null {
