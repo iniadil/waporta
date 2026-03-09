@@ -2,6 +2,8 @@
   <source media="(prefers-color-scheme: dark)" srcset="https://storage.iniadil.dev/wa-porta/waporta-github-dark.png">
   <img src="https://storage.iniadil.dev/wa-porta/waporta-github.png" alt="waporta" width="100%" />
 </picture>
+<br />
+<br />
 
 [![Website](https://img.shields.io/badge/website-waporta.net-black?style=flat-square)](https://waporta.net) [![Docs](https://img.shields.io/badge/docs-waporta.net-blue?style=flat-square)](https://waporta.net/docs) ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
