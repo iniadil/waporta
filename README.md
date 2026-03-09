@@ -1,5 +1,3 @@
-# waporta
-
 <img src="https://storage.iniadil.dev/wa-porta/waporta-github.png" alt="waporta" width="100%" />
 
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
@@ -76,10 +74,10 @@ docker compose up -d --build
 
 ### Persistent data
 
-| Host path               | Container path            | Contents                        |
-| ----------------------- | ------------------------- | ------------------------------- |
-| `./data/baileys_store.db` | `/app/baileys_store.db` | SQLite session store            |
-| `./data/wa_credentials`   | `/app/wa_credentials`   | WhatsApp credential files       |
+| Host path                 | Container path          | Contents                  |
+| ------------------------- | ----------------------- | ------------------------- |
+| `./data/baileys_store.db` | `/app/baileys_store.db` | SQLite session store      |
+| `./data/wa_credentials`   | `/app/wa_credentials`   | WhatsApp credential files |
 
 > Back up the `./data` directory to preserve sessions across host migrations.
 
