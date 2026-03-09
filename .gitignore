@@ -47,3 +47,6 @@ CLAUDE.md
 .claude
 
 package-lock.json
+
+# ignore data api keys
+data/*
