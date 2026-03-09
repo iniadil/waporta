@@ -2,7 +2,7 @@
 
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
-A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box — run multiple WhatsApp accounts simultaneously from a single instance.
+A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box.
 
 Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets/Baileys), and React.
 
@@ -10,179 +10,173 @@ Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets
 
 ![demo](./demo.gif)
 
+## Quick Start
+
+From zero to sending messages in 4 steps.
+
+**1. Run**
+
+```bash
+git clone https://github.com/iniadil/waporta.git
+cd waporta
+cp .env.example .env          # set DASHBOARD_USERNAME and DASHBOARD_PASSWORD
+docker compose up -d
+```
+
+**2. Get an API key**
+
+Open `http://localhost:3000/dashboard` → log in → **API Keys** → enter a name → **Generate** → copy the key (shown once).
+
+**3. Connect WhatsApp**
+
+Open **Sessions** in the dashboard → create a session → scan the QR code or use a pairing code.
+
+**4. Send a message**
+
+```bash
+curl -X POST http://localhost:3000/api/whatsapp/send/text \
+  -H "X-API-Key: wap_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"sessionId": "my-session", "to": "6281234567890", "text": "Hello!"}'
+```
+
+---
+
 ## Why waporta?
 
 - **Multi-device** — uses the latest WhatsApp multi-device protocol via Baileys; no phone needs to stay online
 - **Multi-session** — manage multiple WhatsApp numbers from one server
 - **Lightweight** — minimal dependencies, fast startup, low memory footprint
-- **Dashboard included** — manage sessions, send messages, and check numbers from the browser; no curl or Swagger required
+- **Dashboard included** — manage sessions, send messages, and check numbers from the browser
 - **REST API** — integrate with any backend or automation tool
 
-## Prerequisites
+---
 
-- Node.js v18+, **or** Docker + Docker Compose (for containerized deployment)
+## Setup
 
-## Docker (Production — Recommended)
-
-The easiest way to run waporta in production is with Docker Compose. Session data is persisted via bind-mounted volumes so it survives restarts and upgrades.
-
-**1. Clone the repository**
+### Docker (Recommended)
 
 ```bash
 git clone https://github.com/iniadil/waporta.git
 cd waporta
+cp .env.example .env
 ```
 
-**2. Create the data directory**
+Edit `.env`:
 
-```bash
-mkdir -p data/wa_credentials
+```env
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=your-secure-password
 ```
-
-**3. Start the container**
 
 ```bash
 docker compose up -d
 ```
 
-The API and dashboard are available at `http://localhost:3000`.
+Dashboard and API available at `http://localhost:3000`.
 
-**Override the port**
+**Common commands**
 
 ```bash
-PORT=8080 docker compose up -d
+PORT=8080 docker compose up -d   # custom port
+docker compose logs -f            # view logs
+docker compose down               # stop
+git pull && docker compose up -d --build  # upgrade
 ```
 
-**View logs**
+**Persistent data** (all under `./data/` on the host)
+
+| Path                      | Contents                   |
+| ------------------------- | -------------------------- |
+| `baileys_store.db`        | SQLite session store       |
+| `wa_credentials/`         | WhatsApp credential files  |
+| `api_keys.json`           | API keys                   |
+
+> Back up `./data/` to preserve sessions and API keys across migrations.
+
+<details>
+<summary>Without Docker Compose</summary>
 
 ```bash
-docker compose logs -f
-```
-
-**Stop**
-
-```bash
-docker compose down
-```
-
-**Upgrade to a newer version**
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-### Persistent data
-
-| Host path                 | Container path          | Contents                  |
-| ------------------------- | ----------------------- | ------------------------- |
-| `./data/baileys_store.db` | `/app/baileys_store.db` | SQLite session store      |
-| `./data/wa_credentials`   | `/app/wa_credentials`   | WhatsApp credential files |
-
-> Back up the `./data` directory to preserve sessions across host migrations.
-
-### Without Docker Compose
-
-```bash
-# Build the image
 docker build -t waporta .
-
-# Run the container
 docker run -d \
   --name waporta \
   -p 3000:3000 \
   -v $(pwd)/data/baileys_store.db:/app/baileys_store.db \
   -v $(pwd)/data/wa_credentials:/app/wa_credentials \
+  -v $(pwd)/data:/app/data \
   -e NODE_ENV=production \
+  -e DASHBOARD_USERNAME=admin \
+  -e DASHBOARD_PASSWORD=your-secure-password \
   --restart unless-stopped \
   waporta
 ```
 
----
+</details>
 
-## Setup (without Docker)
-
-**1. Clone the repository**
+### Without Docker
 
 ```bash
 git clone https://github.com/iniadil/waporta.git
 cd waporta
-```
-
-**2. Install dependencies**
-
-```bash
 npm install
+cp .env.example .env
+# edit .env with your credentials
 ```
-
-## Running
-
-### API only
 
 ```bash
-npm run dev     # development with auto-reload
-npm run start   # production (build + run)
+npm run dev:all    # dev: backend + dashboard (hot reload)
+npm run start      # production
 ```
 
-Server runs at `http://localhost:3000`. Override port via env:
+- Backend: `http://localhost:3000`
+- Dashboard (dev): `http://localhost:5173`
+- Dashboard (prod): `http://localhost:3000/dashboard`
 
-```bash
-PORT=8080 npm start
-```
+---
 
-### API + Dashboard (development)
+## Authentication
 
-```bash
-npm run dev:all
-```
+waporta uses a dual-auth system:
 
-Or in two separate terminals:
+| Caller | Header | How to get |
+| ------ | ------ | ---------- |
+| Dashboard | `Authorization: Bearer <token>` | Issued on login, stored in browser |
+| REST API / external | `X-API-Key: <key>` | Generated from the dashboard → API Keys |
 
-```bash
-npm run dev            # backend  → http://localhost:3000
-npm run dashboard:dev  # frontend → http://localhost:5173
-```
+All `/api/whatsapp/*` endpoints accept either. Requests without a valid credential receive `401 Unauthorized`.
 
-### API + Dashboard (production)
-
-```bash
-npm run dashboard:build
-npm run start
-```
-
-Dashboard available at `http://localhost:3000/dashboard`.
+---
 
 ## Dashboard
 
-A UI for managing sessions, sending messages, and checking numbers — no Swagger or curl needed.
+| Page      | Description                                            |
+| --------- | ------------------------------------------------------ |
+| Overview  | Session stats + quick actions                          |
+| Sessions  | Create sessions (QR / Pairing Code), delete sessions   |
+| Messaging | Send text, image, or document messages                 |
+| Checker   | Check if a number is registered on WhatsApp            |
+| API Keys  | Generate and revoke API keys for external integrations |
 
-**Stack**: React + Vite, Headless UI v2, IBM Plex Mono — dark terminal aesthetic.
+QR codes are polled automatically every 2 seconds.
 
-| Page      | Description                                          |
-| --------- | ---------------------------------------------------- |
-| Overview  | Session stats + quick actions                        |
-| Sessions  | Create sessions (QR / Pairing Code), delete sessions |
-| Messaging | Send text, image, or document messages               |
-| Checker   | Check if a number is registered on WhatsApp          |
+---
 
-QR codes are displayed directly in the browser — the dashboard polls `/sessions/:sessionId/qr` every 2 seconds automatically.
-
-## API Endpoints
+## API Reference
 
 Base URL: `http://localhost:3000/api/whatsapp`
-
-Interactive docs available at `http://localhost:3000/doc` (Swagger UI).
+Interactive docs: `http://localhost:3000/doc`
 
 ### Sessions
 
-| Method   | Path                                | Description                       |
-| -------- | ----------------------------------- | --------------------------------- |
-| `GET`    | `/sessions`                         | List all sessions                 |
-| `POST`   | `/sessions/:sessionId`              | Start a new session               |
-| `POST`   | `/sessions/:sessionId/pairing-code` | Start a session via pairing code  |
-| `GET`    | `/sessions/:sessionId`              | Get session status                |
-| `GET`    | `/sessions/:sessionId/qr`           | Get session QR code (for polling) |
-| `DELETE` | `/sessions/:sessionId`              | Delete and logout a session       |
+| Method   | Path                                | Description                      |
+| -------- | ----------------------------------- | -------------------------------- |
+| `GET`    | `/sessions`                         | List all sessions                |
+| `POST`   | `/sessions/:sessionId`              | Start a new session              |
+| `POST`   | `/sessions/:sessionId/pairing-code` | Start via pairing code           |
+| `GET`    | `/sessions/:sessionId`              | Get session status               |
+| `GET`    | `/sessions/:sessionId/qr`           | Get QR code                      |
+| `DELETE` | `/sessions/:sessionId`              | Delete and logout session        |
 
 ### Messaging
 
@@ -194,80 +188,55 @@ Interactive docs available at `http://localhost:3000/doc` (Swagger UI).
 
 ### Utilities
 
-| Method | Path                    | Description                                 |
-| ------ | ----------------------- | ------------------------------------------- |
-| `GET`  | `/check?sessionId=&to=` | Check if a number is registered on WhatsApp |
+| Method | Path                    | Description                          |
+| ------ | ----------------------- | ------------------------------------ |
+| `GET`  | `/check?sessionId=&to=` | Check if a number is on WhatsApp     |
 
-## Usage Examples
-
-**Start a new session**
+### Examples
 
 ```bash
-curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session
-```
+# Start a session
+curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session \
+  -H "X-API-Key: wap_your_key_here"
 
-Scan the QR code via the dashboard or fetch it directly:
-
-```bash
-curl http://localhost:3000/api/whatsapp/sessions/my-session/qr
-```
-
-**Start a session via pairing code**
-
-```bash
-curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/pairing-code \
-  -H "Content-Type: application/json" \
-  -d '{"phoneNumber": "628123456789"}'
-```
-
-```json
-{
-  "status": "waiting_for_confirmation",
-  "sessionId": "my-session",
-  "pairingCode": "ABCD1234"
-}
-```
-
-Enter the pairing code in WhatsApp → Linked Devices → Link with phone number.
-
-**Send a text message**
-
-```bash
+# Send text
 curl -X POST http://localhost:3000/api/whatsapp/send/text \
+  -H "X-API-Key: wap_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "my-session", "to": "6281234567890", "text": "Hello!"}'
-```
 
-**Send an image**
-
-```bash
+# Send image
 curl -X POST http://localhost:3000/api/whatsapp/send/image \
+  -H "X-API-Key: wap_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "my-session", "to": "6281234567890", "media": "https://example.com/image.jpg", "text": "Caption"}'
-```
 
-**Send a document**
-
-```bash
+# Send document
 curl -X POST http://localhost:3000/api/whatsapp/send/document \
+  -H "X-API-Key: wap_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "my-session", "to": "6281234567890", "media": "https://example.com/file.pdf", "filename": "document.pdf"}'
+
+# Check number
+curl "http://localhost:3000/api/whatsapp/check?sessionId=my-session&to=6281234567890" \
+  -H "X-API-Key: wap_your_key_here"
+
+# Pairing code
+curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/pairing-code \
+  -H "X-API-Key: wap_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumber": "628123456789"}'
+
+# Delete session
+curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session \
+  -H "X-API-Key: wap_your_key_here"
 ```
 
-**Check a number**
-
-```bash
-curl "http://localhost:3000/api/whatsapp/check?sessionId=my-session&to=6281234567890"
-```
-
-**Delete a session**
-
-```bash
-curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session
-```
+---
 
 ## Notes
 
-- Phone number format: country code without `+`, e.g. `6281234567890`
-- For group messages, add `"isGroup": true` to the request body
-- Session credentials are stored automatically in SQLite (`baileys_store.db`)
+- Phone numbers: country code without `+`, e.g. `6281234567890`
+- Group messages: add `"isGroup": true` to the request body
+- Session data is stored in SQLite (`baileys_store.db`)
+- API keys are stored in `data/api_keys.json`

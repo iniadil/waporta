@@ -7,8 +7,13 @@ import { SessionsPage } from '../../pages/SessionsPage'
 import { MessagingPage } from '../../pages/MessagingPage'
 import { CheckerPage } from '../../pages/CheckerPage'
 import { ApiDocsPage } from '../../pages/ApiDocsPage'
+import { ApiKeysPage } from '../../pages/ApiKeysPage'
 
-export function Shell() {
+interface Props {
+  onLogout: () => void
+}
+
+export function Shell({ onLogout }: Props) {
   const [page, setPage] = useState<Page>('overview')
 
   const renderPage = () => {
@@ -18,12 +23,13 @@ export function Shell() {
       case 'messaging': return <MessagingPage />
       case 'checker': return <CheckerPage />
       case 'api-docs': return <ApiDocsPage />
+      case 'api-keys': return <ApiKeysPage />
     }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Header />
+      <Header onLogout={onLogout} />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative' }}>
         <Sidebar current={page} onChange={setPage} />
         <main style={{

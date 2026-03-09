@@ -12,7 +12,11 @@ function formatUptime(ms: number) {
   return `${hr}:${min}:${sec}`;
 }
 
-export function Header() {
+interface Props {
+  onLogout?: () => void
+}
+
+export function Header({ onLogout }: Props) {
   const [startTime] = useState(() => Date.now());
   const [uptime, setUptime] = useState("00:00:00");
 
@@ -48,14 +52,34 @@ export function Header() {
           _
         </span>
       </div>
-      <div
-        style={{
-          color: "var(--text-dim)",
-          fontSize: 11,
-          letterSpacing: "0.08em",
-        }}
-      >
-        UPTIME: <span style={{ color: "var(--text)" }}>{uptime}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div
+          style={{
+            color: "var(--text-dim)",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+          }}
+        >
+          UPTIME: <span style={{ color: "var(--text)" }}>{uptime}</span>
+        </div>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            style={{
+              padding: "4px 10px",
+              border: "1px solid var(--border-bright)",
+              color: "var(--text-dim)",
+              fontSize: 10,
+              letterSpacing: "0.1em",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--red)"; e.currentTarget.style.color = "var(--red)" }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-bright)"; e.currentTarget.style.color = "var(--text-dim)" }}
+          >
+            [ LOGOUT ]
+          </button>
+        )}
       </div>
     </header>
   );

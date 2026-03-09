@@ -1,4 +1,4 @@
-type Page = "overview" | "sessions" | "messaging" | "checker" | "api-docs";
+type Page = "overview" | "sessions" | "messaging" | "checker" | "api-docs" | "api-keys";
 
 interface NavItem {
   id: Page;
@@ -12,6 +12,7 @@ const navItems: NavItem[] = [
   { id: "messaging", label: "Messaging", prefix: "03" },
   { id: "checker", label: "Checker", prefix: "04" },
   { id: "api-docs", label: "API Docs", prefix: "05" },
+  { id: "api-keys", label: "API Keys", prefix: "06" },
 ];
 
 interface Props {

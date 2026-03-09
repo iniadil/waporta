@@ -6,6 +6,9 @@ import { cors } from "hono/cors";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { createRequire } from "module";
 import whatsappRoutes from "./routes/whatsapp.js";
+import authRoutes from "./routes/auth.js";
+import apiKeysRoutes from "./routes/apikeys.js";
+import { authMiddleware, dualAuthMiddleware } from "./middleware/auth.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -15,9 +18,16 @@ const app = new OpenAPIHono();
 app.use("*", logger());
 app.use("*", prettyJSON());
 app.use("/api/*", cors({ origin: "http://localhost:5173" }));
+app.use("/auth/*", cors({ origin: "http://localhost:5173" }));
 
 app.get("/", (c) => c.json({ status: "ok", message: "WA Porta API" }));
 
+app.route("/auth", authRoutes);
+
+app.use("/api/keys*", authMiddleware);
+app.route("/api/keys", apiKeysRoutes);
+
+app.use("/api/whatsapp/*", dualAuthMiddleware);
 app.route("/api/whatsapp", whatsappRoutes);
 
 export const openAPIConfig = {
