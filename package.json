@@ -23,7 +23,7 @@
     "@hono/swagger-ui": "^0.6.0",
     "@hono/zod-openapi": "^1.2.2",
     "hono": "^4.12.5",
-    "wa-multi-session": "/Volumes/Adil/Workspace/dev/playground/wa-multi-session",
+    "wa-multi-session": "^4.2.3",
     "zod": "^4.3.6"
   },
   "trustedDependencies": [

@@ -5,24 +5,20 @@ REST API and Dashboard UI for WhatsApp Gateway, built with [Hono](https://hono.d
 ## Prerequisites
 
 - Node.js v18+
-- `wa-multi-session` library built locally (see Setup)
 
 ## Setup
 
-**1. Install dependencies**
+**1. Clone the repository**
 
 ```bash
-npm install
+git clone https://github.com/iniadil/waporta.git
+cd waporta
 ```
 
-**2. Build wa-multi-session**
-
-This project uses a local path for `wa-multi-session` which needs to be built first:
+**2. Install dependencies**
 
 ```bash
-cd /Volumes/Adil/Workspace/dev/playground/wa-multi-session
 npm install
-./node_modules/.bin/tsc
 ```
 
 ## Running
