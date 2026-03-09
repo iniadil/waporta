@@ -1,0 +1,10 @@
+node_modules
+dist
+dashboard/node_modules
+dashboard/dist
+.git
+*.db
+wa_credentials
+data
+.env
+.env.*
