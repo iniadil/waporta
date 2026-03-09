@@ -61,3 +61,20 @@ input::placeholder { color: var(--text-dim); }
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+/* HeadlessUI Listbox option states */
+.listbox-option {
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+  list-style: none;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+.listbox-option[data-focus] {
+  background: var(--bg-hover);
+  color: var(--text-bright);
+}
+.listbox-option[data-selected] {
+  color: var(--amber);
+}

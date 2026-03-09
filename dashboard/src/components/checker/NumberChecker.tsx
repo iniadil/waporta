@@ -68,13 +68,7 @@ export function NumberChecker({ sessions }: Props) {
               <ListboxOption
                 key={s}
                 value={s}
-                style={({ focus, selected }) => ({
-                  padding: '7px 12px',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  color: selected ? 'var(--amber)' : focus ? 'var(--text-bright)' : 'var(--text)',
-                  background: focus ? 'var(--bg-hover)' : 'transparent',
-                })}
+                className="listbox-option"
               >
                 {s}
               </ListboxOption>

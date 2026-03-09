@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { TabGroup, TabList, Tab, TabPanels, TabPanel } from '@headlessui/react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
@@ -35,6 +35,15 @@ export function CreateSession({ onCreated, onClose }: Props) {
   const [tabIndex, setTabIndex] = useState(0)
 
   const qr = useQR(pendingSession, false)
+  const prevQr = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (prevQr.current !== null && qr === null && pendingSession) {
+      onCreated()
+      onClose()
+    }
+    prevQr.current = qr
+  }, [qr])
 
   const handleQRStart = async () => {
     if (!sessionId.trim()) return
