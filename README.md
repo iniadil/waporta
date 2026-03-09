@@ -1,6 +1,16 @@
 # waporta
 
-REST API and Dashboard UI for WhatsApp Gateway, built with [Hono](https://hono.dev), [wa-multi-session](https://github.com/mimamch/wa-multi-session), and React.
+A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box — run multiple WhatsApp accounts simultaneously from a single instance.
+
+Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets/Baileys), and React.
+
+## Why waporta?
+
+- **Multi-device** — uses the latest WhatsApp multi-device protocol via Baileys; no phone needs to stay online
+- **Multi-session** — manage multiple WhatsApp numbers from one server
+- **Lightweight** — minimal dependencies, fast startup, low memory footprint
+- **Dashboard included** — manage sessions, send messages, and check numbers from the browser; no curl or Swagger required
+- **REST API** — integrate with any backend or automation tool
 
 ## Prerequisites
 
