@@ -36,21 +36,16 @@ export function Header() {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span
-          style={{
-            color: "var(--amber)",
-            fontWeight: 600,
-            letterSpacing: "0.12em",
-            fontSize: 14,
-          }}
-        >
-          WA-PORTA
+        <img
+          src="/dashboard/waporta-logo-only.png"
+          alt="waporta"
+          style={{ height: 24, width: "auto" }}
+        />
+        <span style={{ color: "var(--text-dim)", fontSize: 11, marginLeft: 0 }}>
+          WAPORTA v{version}
         </span>
         <span className="blink" style={{ color: "var(--amber)", fontSize: 14 }}>
           _
-        </span>
-        <span style={{ color: "var(--text-dim)", fontSize: 11, marginLeft: 8 }}>
-          DASHBOARD v{version}
         </span>
       </div>
       <div

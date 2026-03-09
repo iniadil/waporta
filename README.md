@@ -1,5 +1,7 @@
 # waporta
 
+<img src="https://storage.iniadil.dev/wa-porta/waporta-github.png" alt="waporta" width="100%" />
+
 ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
 A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box — run multiple WhatsApp accounts simultaneously from a single instance.
