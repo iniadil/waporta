@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+// const { version } = require("../../../package.json") as { version: string };
+import { version } from "../../../package.json";
 
 function formatUptime(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -48,7 +50,7 @@ export function Header() {
           _
         </span>
         <span style={{ color: "var(--text-dim)", fontSize: 11, marginLeft: 8 }}>
-          DASHBOARD v1.0
+          DASHBOARD v{version}
         </span>
       </div>
       <div
