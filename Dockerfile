@@ -29,6 +29,7 @@ RUN npm install --omit=dev
 # Stage 4: Production image
 FROM node:20-alpine AS production
 WORKDIR /app
+COPY package.json openapi.json ./
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=dashboard-builder /app/dashboard/dist ./dashboard/dist
