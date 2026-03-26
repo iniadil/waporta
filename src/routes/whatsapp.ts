@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
 import wa from '../wa.js'
 import { setPendingSession, getQR } from '../events.js'
+import { sendWithRetry, RetriesExhaustedError } from '../lib/send-with-retry.js'
 
 const app = new OpenAPIHono()
 
@@ -10,6 +11,11 @@ const SessionIdParam = z.object({
 
 const StatusResponse = z.object({ status: z.string() })
 const ErrorResponse = z.object({ error: z.string() })
+const DeliveryFailedResponse = z.object({
+  error: z.literal('delivery_failed'),
+  message: z.string(),
+  attempts: z.number(),
+})
 
 // List all sessions
 app.openapi(
@@ -225,12 +231,25 @@ app.openapi(
         description: 'Message sent',
         content: { 'application/json': { schema: StatusResponse } },
       },
+      502: {
+        description: 'Delivery failed after retries',
+        content: { 'application/json': { schema: DeliveryFailedResponse } },
+      },
     },
   }),
   async (c) => {
     const { sessionId, to, text, isGroup } = c.req.valid('json')
-    await wa.sendText({ sessionId, to, text, isGroup })
-    return c.json({ status: 'sent' })
+    try {
+      await sendWithRetry({
+        sessionId, to, messageType: 'text',
+        sendFn: () => wa.sendText({ sessionId, to, text, isGroup }),
+      })
+      return c.json({ status: 'sent' }, 200 as const)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1
+      return c.json({ error: 'delivery_failed' as const, message: msg, attempts }, 502 as const)
+    }
   }
 )
 
@@ -262,12 +281,25 @@ app.openapi(
         description: 'Image sent',
         content: { 'application/json': { schema: StatusResponse } },
       },
+      502: {
+        description: 'Delivery failed after retries',
+        content: { 'application/json': { schema: DeliveryFailedResponse } },
+      },
     },
   }),
   async (c) => {
     const { sessionId, to, media, text, isGroup } = c.req.valid('json')
-    await wa.sendImage({ sessionId, to, media, text, isGroup })
-    return c.json({ status: 'sent' })
+    try {
+      await sendWithRetry({
+        sessionId, to, messageType: 'image',
+        sendFn: () => wa.sendImage({ sessionId, to, media, text, isGroup }),
+      })
+      return c.json({ status: 'sent' }, 200 as const)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1
+      return c.json({ error: 'delivery_failed' as const, message: msg, attempts }, 502 as const)
+    }
   }
 )
 
@@ -300,12 +332,25 @@ app.openapi(
         description: 'Document sent',
         content: { 'application/json': { schema: StatusResponse } },
       },
+      502: {
+        description: 'Delivery failed after retries',
+        content: { 'application/json': { schema: DeliveryFailedResponse } },
+      },
     },
   }),
   async (c) => {
     const { sessionId, to, media, filename, text, isGroup } = c.req.valid('json')
-    await wa.sendDocument({ sessionId, to, media, filename, text, isGroup })
-    return c.json({ status: 'sent' })
+    try {
+      await sendWithRetry({
+        sessionId, to, messageType: 'document',
+        sendFn: () => wa.sendDocument({ sessionId, to, media, filename, text, isGroup }),
+      })
+      return c.json({ status: 'sent' }, 200 as const)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1
+      return c.json({ error: 'delivery_failed' as const, message: msg, attempts }, 502 as const)
+    }
   }
 )
 
