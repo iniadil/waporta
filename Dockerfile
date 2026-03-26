@@ -32,6 +32,7 @@ WORKDIR /app
 COPY package.json openapi.json ./
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY package.json openapi.json ./dist/
 COPY --from=dashboard-builder /app/dashboard/dist ./dashboard/dist
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
