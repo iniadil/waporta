@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/node": "^22",
     "concurrently": "^9.2.1",
+    "@types/nodemailer": "^6.4.17",
     "tsx": "^4",
     "typescript": "^5"
   },
@@ -23,6 +24,7 @@
     "@hono/swagger-ui": "^0.6.0",
     "@hono/zod-openapi": "^1.2.2",
     "hono": "^4.12.5",
+    "nodemailer": "^6.9.16",
     "wa-multi-session": "^4.2.3",
     "zod": "^4.3.6"
   },
