@@ -6,7 +6,7 @@ const wa = new Whatsapp({
   onConnecting: (sessionId) => console.log(`[${sessionId}] Connecting...`),
   onConnected: (sessionId) => { clearQR(sessionId); console.log(`[${sessionId}] Connected`) },
   onDisconnected: (sessionId) => console.log(`[${sessionId}] Disconnected`),
-  onQRUpdated: (qrData) => { const d = qrData as { sessionId: string; qr: string }; onQR(d.sessionId, d.qr); console.log('QR Code updated') },
+  onQRUpdated: (qrData) => { const d = qrData as unknown as { sessionId: string; qr: string }; onQR(d.sessionId, d.qr); console.log('QR Code updated') },
   onMessageReceived: (msg) => console.log(`[${msg.sessionId}] Message received:`, JSON.stringify(msg, null, 2)),
 })
 
