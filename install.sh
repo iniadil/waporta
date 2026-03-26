@@ -43,7 +43,7 @@ ok "Prerequisites OK (git, docker, docker compose)"
 if [ -d "$DIR" ]; then
   warn "Directory '$DIR' already exists."
   printf "  Overwrite? [y/N] "
-  read -r CONFIRM
+  read -r CONFIRM </dev/tty
   case "$CONFIRM" in
     y|Y) rm -rf "$DIR" ;;
     *)   error "Aborted." ;;
@@ -55,18 +55,18 @@ fi
 header "Dashboard credentials"
 
 printf "  Username [admin]: "
-read -r USERNAME
+read -r USERNAME </dev/tty
 USERNAME="${USERNAME:-admin}"
 
 printf "  Password: "
 # hide input if connected to a terminal
-if [ -t 0 ]; then
+if [ -t 1 ]; then
   stty -echo 2>/dev/null || true
-  read -r PASSWORD
+  read -r PASSWORD </dev/tty
   stty echo 2>/dev/null || true
   print ""
 else
-  read -r PASSWORD
+  read -r PASSWORD </dev/tty
 fi
 
 if [ -z "$PASSWORD" ]; then
@@ -74,7 +74,7 @@ if [ -z "$PASSWORD" ]; then
 fi
 
 printf "  Port [3000]: "
-read -r PORT
+read -r PORT </dev/tty
 PORT="${PORT:-3000}"
 
 # ── install ────────────────────────────────────────────────────────────────────
