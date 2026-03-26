@@ -1,7 +1,6 @@
 services:
   app:
     build: .
-    image: waporta:latest
     container_name: waporta
     ports:
       - "${PORT:-3000}:3000"

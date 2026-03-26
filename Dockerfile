@@ -1,7 +1,9 @@
 # Stage 1: Build dashboard (React/Vite)
 FROM node:20-alpine AS dashboard-builder
+WORKDIR /app
+COPY package.json openapi.json ./
+COPY dashboard/package*.json ./dashboard/
 WORKDIR /app/dashboard
-COPY dashboard/package*.json ./
 RUN npm install
 COPY dashboard/ ./
 RUN npm run build
