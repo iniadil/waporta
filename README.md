@@ -70,6 +70,7 @@ curl -X POST http://localhost:3000/api/whatsapp/send/text \
 - **Lightweight** — minimal dependencies, fast startup, low memory footprint
 - **Dashboard included** — manage sessions, send messages, and check numbers from the browser
 - **REST API** — integrate with any backend or automation tool
+- **Retry & notifications** — automatic retry with exponential backoff for failed deliveries, optional email/webhook alerts
 
 ---
 
@@ -254,6 +255,65 @@ curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/pairing-code
 curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session \
   -H "X-API-Key: wap_your_key_here"
 ```
+
+---
+
+## Retry & Failure Notifications
+
+When a message fails to send (e.g. session disconnected), waporta automatically retries up to **3 times** with exponential backoff (1s, 2s, 4s). If all retries fail, it returns a `502` response and optionally notifies you via email or webhook.
+
+### Error behavior
+
+| Error type | Example | Behavior |
+| --- | --- | --- |
+| Retryable | Session disconnected, timeout, connection reset | Retry up to 3 times |
+| Non-retryable | Session not found, invalid media, validation error | Fail immediately |
+
+### Failed delivery response
+
+```json
+{
+  "error": "delivery_failed",
+  "message": "All 3 attempts failed: Session with ID: \"my-session\" Not Ready!",
+  "attempts": 3
+}
+```
+
+### Email notification (optional)
+
+Add these to your `.env` to receive email alerts when delivery fails after all retries:
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=waporta@yourdomain.com
+NOTIFY_EMAIL=admin@yourdomain.com
+```
+
+### Webhook notification (optional)
+
+Set a webhook URL to receive a `POST` request with failure details:
+
+```env
+NOTIFY_WEBHOOK_URL=https://your-endpoint.com/waporta
+```
+
+Webhook payload:
+
+```json
+{
+  "sessionId": "my-session",
+  "to": "6281234567890",
+  "messageType": "text",
+  "error": "All 3 attempts failed: Session with ID: \"my-session\" Not Ready!",
+  "attempts": 3,
+  "timestamp": "2026-03-26T15:10:27.000Z"
+}
+```
+
+> Both notification channels are optional and can be used together. If neither is configured, retry still works — you just won't get notified.
 
 ---
 
