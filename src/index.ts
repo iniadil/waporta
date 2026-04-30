@@ -54,7 +54,7 @@ app.use(
 app.notFound((c) => c.json({ error: "Not Found" }, 404));
 app.onError((err, c) => {
   console.error(err);
-  if (err instanceof SyntaxError || err.message.includes("JSON")) {
+  if (err instanceof SyntaxError) {
     return c.json({ error: "Invalid or missing JSON body" }, 400);
   }
   return c.json({ error: err.message }, 500);
