@@ -9,6 +9,8 @@ import whatsappRoutes from "./routes/whatsapp.js";
 import authRoutes from "./routes/auth.js";
 import apiKeysRoutes from "./routes/apikeys.js";
 import { authMiddleware, dualAuthMiddleware } from "./middleware/auth.js";
+import { webhookManager } from "./webhooks/singletons.js";
+import { createWebhookRoutes } from "./routes/webhooks.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -29,6 +31,7 @@ app.route("/api/keys", apiKeysRoutes);
 
 app.use("/api/whatsapp/*", dualAuthMiddleware);
 app.route("/api/whatsapp", whatsappRoutes);
+app.route("/api/whatsapp", createWebhookRoutes(webhookManager));
 
 export const openAPIConfig = {
   openapi: "3.0.0" as const,
@@ -38,6 +41,16 @@ export const openAPIConfig = {
     description: "WhatsApp Gateway REST API powered by Baileys",
   },
 };
+
+app.openAPIRegistry.registerComponent('securitySchemes', 'Bearer', {
+  type: 'http',
+  scheme: 'bearer',
+});
+app.openAPIRegistry.registerComponent('securitySchemes', 'ApiKeyAuth', {
+  type: 'apiKey',
+  in: 'header',
+  name: 'X-API-Key',
+});
 
 app.doc("/openapi.json", openAPIConfig);
 app.get("/doc", swaggerUI({ url: "/openapi.json" }));
