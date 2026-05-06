@@ -7,7 +7,7 @@
 
 [![Website](https://img.shields.io/badge/website-waporta.net-black?style=flat-square)](https://waporta.net) [![Docs](https://img.shields.io/badge/docs-waporta.net-blue?style=flat-square)](https://waporta.net/docs) ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
-A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device** and **multi-session** out of the box.
+A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device**, **multi-session**, and **session-scoped incoming message webhooks** out of the box.
 
 Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets/Baileys), and React.
 
@@ -50,7 +50,7 @@ Option B — generate one from the dashboard: open `http://localhost:3000/dashbo
 
 **3. Connect WhatsApp**
 
-Open **Sessions** in the dashboard → create a session → scan the QR code or use a pairing code.
+Open **Sessions** in the dashboard → create a session → scan the QR code or use a pairing code. You can also add HTTPS webhook URLs per session to receive incoming message events.
 
 **4. Send a message**
 
@@ -68,8 +68,9 @@ curl -X POST http://localhost:3000/api/whatsapp/send/text \
 - **Multi-device** — uses the latest WhatsApp multi-device protocol via Baileys; no phone needs to stay online
 - **Multi-session** — manage multiple WhatsApp numbers from one server
 - **Lightweight** — minimal dependencies, fast startup, low memory footprint
-- **Dashboard included** — manage sessions, send messages, and check numbers from the browser
-- **REST API** — integrate with any backend or automation tool
+- **Dashboard included** — manage sessions, send messages, webhooks, and check numbers from the browser
+- **REST API** — integrate messaging, session management, and session-scoped webhooks with any backend or automation tool
+- **Session webhooks** — register multiple HTTPS URLs per session for incoming WhatsApp message events
 - **Retry & notifications** — automatic retry with exponential backoff for failed deliveries, optional email/webhook alerts
 
 ---
@@ -110,11 +111,12 @@ git pull && docker compose up -d --build  # upgrade
 
 **Persistent data** (all under `./data/` on the host)
 
-| Path               | Contents                  |
-| ------------------ | ------------------------- |
-| `baileys_store.db` | SQLite session store      |
-| `wa_credentials/`  | WhatsApp credential files |
-| `api_keys.json`    | API keys                  |
+| Path                | Contents                  |
+| ------------------- | ------------------------- |
+| `baileys_store.db`  | SQLite session store      |
+| `wa_credentials/`   | WhatsApp credential files |
+| `api_keys.json`     | API keys                  |
+| `webhook_urls.json` | Session webhook URLs      |
 
 > Back up `./data/` to preserve sessions and API keys across migrations.
 
@@ -174,13 +176,13 @@ All `/api/whatsapp/*` endpoints accept either. Requests without a valid credenti
 
 ## Dashboard
 
-| Page      | Description                                            |
-| --------- | ------------------------------------------------------ |
-| Overview  | Session stats + quick actions                          |
-| Sessions  | Create sessions (QR / Pairing Code), delete sessions   |
-| Messaging | Send text, image, or document messages                 |
-| Checker   | Check if a number is registered on WhatsApp            |
-| API Keys  | Generate and revoke API keys for external integrations |
+| Page      | Description                                                            |
+| --------- | ---------------------------------------------------------------------- |
+| Overview  | Session stats + quick actions                                          |
+| Sessions  | Create sessions (QR / Pairing Code), manage webhook URLs, delete sessions |
+| Messaging | Send text, image, or document messages                                 |
+| Checker   | Check if a number is registered on WhatsApp                            |
+| API Keys  | Generate and revoke API keys for external integrations                 |
 
 QR codes are polled automatically every 2 seconds.
 
@@ -215,6 +217,90 @@ Interactive docs: [`https://waporta.net`](https://waporta.net) or `http://localh
 | Method | Path                    | Description                      |
 | ------ | ----------------------- | -------------------------------- |
 | `GET`  | `/check?sessionId=&to=` | Check if a number is on WhatsApp |
+
+### Webhooks
+
+Session webhooks deliver incoming WhatsApp message events to HTTPS endpoints that you control.
+Each webhook URL belongs to one session, and incoming messages are delivered only to webhook URLs registered for the matching `sessionId`.
+Multiple webhook URLs can be registered for the same session.
+
+All webhook management endpoints use the same authentication as other `/api/whatsapp/*` endpoints: `Authorization: Bearer <token>` or `X-API-Key: <key>`.
+
+| Method   | Path                                   | Description                         |
+| -------- | -------------------------------------- | ----------------------------------- |
+| `POST`   | `/sessions/{sessionId}/webhooks`       | Register an HTTPS webhook URL       |
+| `GET`    | `/sessions/{sessionId}/webhooks`       | List webhook URLs for one session   |
+| `DELETE` | `/sessions/{sessionId}/webhooks/{id}`  | Delete one webhook URL by record id |
+
+**Create request**
+
+```json
+{
+  "url": "https://example.com/whatsapp"
+}
+```
+
+`url` must be an absolute HTTPS URL, up to 2048 characters, with no fragment.
+
+**Webhook URL record**
+
+```json
+{
+  "id": "a1b2c3d4e5f6a7b8",
+  "sessionId": "my-session",
+  "url": "https://example.com/whatsapp",
+  "normalizedUrl": "https://example.com/whatsapp",
+  "enabled": true,
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z"
+}
+```
+
+Webhook management responses do not include API keys, request headers, WhatsApp credentials, or other authentication secrets.
+If the same normalized URL already exists for the session, create returns `409`:
+
+```json
+{
+  "error": "duplicate_webhook_url",
+  "existingId": "a1b2c3d4e5f6a7b8"
+}
+```
+
+**Outbound `WebhookMessagePayload`**
+
+Each delivery is a `POST` request with a JSON body containing:
+
+| Field         | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `event`       | Currently `message.received`                     |
+| `sessionId`   | Session that received the incoming message       |
+| `messageId`   | Message identifier when available                |
+| `sender`      | WhatsApp sender JID when available               |
+| `recipient`   | WhatsApp recipient JID when available            |
+| `timestamp`   | Message timestamp as a number or string          |
+| `messageType` | Message type such as `text`, `image`, `document` |
+| `content`     | Message content metadata with secrets redacted   |
+| `raw`         | Raw event data with secrets redacted             |
+
+Example payload:
+
+```json
+{
+  "event": "message.received",
+  "sessionId": "my-session",
+  "messageId": "ABCDEF123456",
+  "sender": "6281234567890@s.whatsapp.net",
+  "recipient": "6289876543210@s.whatsapp.net",
+  "timestamp": 1700000000,
+  "messageType": "text",
+  "content": {
+    "text": "Hello from WhatsApp"
+  },
+  "raw": {
+    "event": "redacted raw event data"
+  }
+}
+```
 
 ### Examples
 
@@ -254,6 +340,20 @@ curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/pairing-code
 # Delete session
 curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session \
   -H "X-API-Key: wap_your_key_here"
+
+# Create a session webhook URL
+curl -X POST http://localhost:3000/api/whatsapp/sessions/my-session/webhooks \
+  -H "X-API-Key: wap_your_key_here" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/whatsapp"}'
+
+# List session webhook URLs
+curl http://localhost:3000/api/whatsapp/sessions/my-session/webhooks \
+  -H "X-API-Key: wap_your_key_here"
+
+# Delete a session webhook URL
+curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session/webhooks/a1b2c3d4e5f6a7b8 \
+  -H "X-API-Key: wap_your_key_here"
 ```
 
 ---
@@ -292,7 +392,7 @@ SMTP_FROM=waporta@yourdomain.com
 NOTIFY_EMAIL=admin@yourdomain.com
 ```
 
-### Webhook notification (optional)
+### Failure notification webhook (optional)
 
 Set a webhook URL to receive a `POST` request with failure details:
 
@@ -314,6 +414,7 @@ Webhook payload:
 ```
 
 > Both notification channels are optional and can be used together. If neither is configured, retry still works — you just won't get notified.
+> This failure notification webhook is separate from session webhooks, which deliver incoming WhatsApp message events per session.
 
 ---
 
@@ -323,6 +424,7 @@ Webhook payload:
 - Group messages: add `"isGroup": true` to the request body
 - Session data is stored in SQLite (`baileys_store.db`)
 - API keys are stored in `data/api_keys.json`
+- Session webhook URLs are stored in `data/webhook_urls.json`
 - `DEFAULT_API_KEY` in `.env` works without creating a key from the dashboard
 
 ---
