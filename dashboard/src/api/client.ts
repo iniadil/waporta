@@ -3,10 +3,21 @@ const BASE_KEYS = '/api'
 
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  details: unknown
+
+  constructor(status: number, message: string, details?: unknown) {
     super(message)
     this.status = status
+    this.details = details
   }
+}
+
+function getErrorMessage(data: unknown): string {
+  if (data != null && typeof data === 'object' && 'error' in data) {
+    const error = (data as { error?: unknown }).error
+    if (typeof error === 'string') return error
+  }
+  return 'Request failed'
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit, useKeysBase = false): Promise<T> {
@@ -20,7 +31,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit, useKeysBase 
     headers['Authorization'] = `Bearer ${token}`
   }
   const res = await fetch(`${base}${path}`, { ...init, headers })
-  const data = await res.json()
-  if (!res.ok) throw new ApiError(res.status, data.error ?? 'Request failed')
+  const text = await res.text()
+  const data = text.length > 0 ? JSON.parse(text) : null
+  if (!res.ok) throw new ApiError(res.status, getErrorMessage(data), data)
   return data as T
 }

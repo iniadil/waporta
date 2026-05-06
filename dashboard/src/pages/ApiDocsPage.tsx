@@ -28,6 +28,36 @@ const METHOD_COLORS: Record<HttpMethod, { bg: string; color: string; label: stri
   delete: { bg: '#3a0d0a', color: 'var(--red)',    label: 'DELETE' },
 }
 
+const WEBHOOK_ROUTES: Array<{ method: HttpMethod; path: string; summary: string }> = [
+  {
+    method: 'post',
+    path: '/api/whatsapp/sessions/{sessionId}/webhooks',
+    summary: 'Create an HTTPS webhook URL for one WhatsApp session.',
+  },
+  {
+    method: 'get',
+    path: '/api/whatsapp/sessions/{sessionId}/webhooks',
+    summary: 'List webhook URL records configured for one WhatsApp session.',
+  },
+  {
+    method: 'delete',
+    path: '/api/whatsapp/sessions/{sessionId}/webhooks/{id}',
+    summary: 'Delete one webhook URL by id and matching session.',
+  },
+]
+
+const WEBHOOK_PAYLOAD_FALLBACK_FIELDS = [
+  'event',
+  'sessionId',
+  'messageId',
+  'sender',
+  'recipient',
+  'timestamp',
+  'messageType',
+  'content',
+  'raw',
+]
+
 function collectEndpoints(): EndpointInfo[] {
   const endpoints: EndpointInfo[] = []
   const paths = (openapi as Record<string, unknown>).paths as Record<string, Record<string, unknown>>
@@ -60,6 +90,14 @@ function groupByTag(endpoints: EndpointInfo[]): Record<string, EndpointInfo[]> {
   return groups
 }
 
+function getWebhookPayloadFields(): string[] {
+  const components = (openapi as Record<string, unknown>).components as
+    | { schemas?: Record<string, { properties?: Record<string, unknown> }> }
+    | undefined
+  const properties = components?.schemas?.WebhookMessagePayload?.properties
+  return properties != null ? Object.keys(properties) : WEBHOOK_PAYLOAD_FALLBACK_FIELDS
+}
+
 function JsonBlock({ data }: { data: unknown }) {
   return (
     <pre style={{
@@ -74,6 +112,94 @@ function JsonBlock({ data }: { data: unknown }) {
     }}>
       {JSON.stringify(data, null, 2)}
     </pre>
+  )
+}
+
+function WebhookDocsSection({ payloadFields }: { payloadFields: string[] }) {
+  return (
+    <div className="animate-fade-in-delay-1" style={{
+      border: '1px solid var(--border)',
+      background: 'var(--bg-panel)',
+      padding: 18,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 16,
+    }}>
+      <div>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.12em', marginBottom: 4 }}>
+          WEBHOOKS / REALTIME DELIVERY
+        </div>
+        <h2 style={{ fontSize: 14, color: 'var(--text-bright)', fontWeight: 500 }}>
+          Session-scoped webhook URLs
+        </h2>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8 }}>
+        {[
+          'Multiple HTTPS webhook URLs can be configured for each WhatsApp session.',
+          'Incoming message events are delivered only to URLs registered for the same sessionId.',
+          'Each delivery is a POST request with a WebhookMessagePayload JSON body.',
+        ].map((item) => (
+          <div key={item} style={{ border: '1px solid var(--border)', padding: '9px 10px', color: 'var(--text)', fontSize: 11, lineHeight: 1.6 }}>
+            {item}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.1em' }}>MANAGEMENT ENDPOINTS</div>
+        {WEBHOOK_ROUTES.map((route) => {
+          const mc = METHOD_COLORS[route.method]
+          return (
+            <div key={`${route.method}-${route.path}`} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              border: '1px solid var(--border)',
+              padding: '8px 10px',
+              minWidth: 0,
+            }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                padding: '2px 7px',
+                background: mc.bg,
+                color: mc.color,
+                minWidth: 54,
+                textAlign: 'center',
+                flexShrink: 0,
+              }}>
+                {mc.label}
+              </span>
+              <code style={{ fontSize: 11, color: 'var(--text-bright)', overflowWrap: 'anywhere' }}>{route.path}</code>
+              <span style={{ color: 'var(--text-dim)', fontSize: 11, marginLeft: 'auto', textAlign: 'right' }}>
+                {route.summary}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <div>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
+          OUTBOUND WEBHOOK MESSAGE PAYLOAD
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {payloadFields.map((field) => (
+            <code key={field} style={{
+              border: '1px solid var(--border-bright)',
+              background: 'var(--bg)',
+              color: field === 'event' || field === 'sessionId' ? 'var(--amber)' : 'var(--text)',
+              padding: '3px 7px',
+              fontSize: 11,
+            }}>
+              {field}
+            </code>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -223,6 +349,7 @@ export function ApiDocsPage() {
   const groups = groupByTag(endpoints)
   const [openTags, setOpenTags] = useState<Set<string>>(() => new Set(Object.keys(groups)))
   const info = (openapi as Record<string, unknown>).info as Record<string, string>
+  const webhookPayloadFields = getWebhookPayloadFields()
 
   const toggleTag = (tag: string) => {
     setOpenTags(prev => {
@@ -271,6 +398,8 @@ export function ApiDocsPage() {
           {endpoints.length} endpoints total
         </span>
       </div>
+
+      <WebhookDocsSection payloadFields={webhookPayloadFields} />
 
       {/* Tag groups */}
       {Object.entries(groups).map(([tag, eps]) => (
