@@ -2,11 +2,182 @@
   "openapi": "3.0.0",
   "info": {
     "title": "WA Porta API",
-    "version": "1.0.3",
+    "version": "1.1.1",
     "description": "WhatsApp Gateway REST API powered by Baileys"
   },
   "components": {
-    "schemas": {},
+    "schemas": {
+      "WebhookMessagePayload": {
+        "type": "object",
+        "description": "JSON body POSTed to each registered webhook URL when an incoming WhatsApp message is received. Fields are sourced from the wa-multi-session event for the session.",
+        "required": [
+          "event",
+          "sessionId",
+          "raw"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "message.received"
+            ],
+            "example": "message.received"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "my-session"
+          },
+          "messageId": {
+            "type": "string",
+            "example": "ABCDEF123456"
+          },
+          "sender": {
+            "type": "string",
+            "example": "6281234567890@s.whatsapp.net"
+          },
+          "recipient": {
+            "type": "string",
+            "example": "6289876543210@s.whatsapp.net"
+          },
+          "timestamp": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "example": 1700000000
+          },
+          "messageType": {
+            "type": "string",
+            "example": "text"
+          },
+          "content": {
+            "description": "Message content metadata (authentication secrets redacted)"
+          },
+          "raw": {
+            "description": "Full raw wa-multi-session event (authentication secrets redacted)"
+          }
+        }
+      },
+      "WebhookUrlRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "a1b2c3d4e5f6a7b8"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "my-session"
+          },
+          "url": {
+            "type": "string",
+            "example": "https://example.com/whatsapp"
+          },
+          "normalizedUrl": {
+            "type": "string",
+            "example": "https://example.com/whatsapp"
+          },
+          "enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "example": "2024-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "url",
+          "normalizedUrl",
+          "enabled",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Invalid webhook URL"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "DuplicateWebhookUrlError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "enum": [
+              "duplicate_webhook_url"
+            ],
+            "example": "duplicate_webhook_url"
+          },
+          "existingId": {
+            "type": "string",
+            "example": "a1b2c3d4e5f6a7b8"
+          }
+        },
+        "required": [
+          "error",
+          "existingId"
+        ]
+      },
+      "CreateWebhookUrlRequest": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "example": "https://example.com/whatsapp",
+            "description": "Absolute HTTPS URL, max 2048 characters, no fragment"
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
+      "DeleteWebhookUrlResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "a1b2c3d4e5f6a7b8"
+          },
+          "sessionId": {
+            "type": "string",
+            "example": "my-session"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
     "parameters": {}
   },
   "paths": {
@@ -151,16 +322,37 @@
                     "sessionId": {
                       "type": "string"
                     },
-                    "session": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "connecting",
+                        "connected",
+                        "disconnected"
+                      ]
+                    },
+                    "user": {
                       "type": "object",
-                      "additionalProperties": {
-                        "nullable": true
-                      }
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "lid": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "id"
+                      ]
                     }
                   },
                   "required": [
                     "sessionId",
-                    "session"
+                    "status",
+                    "user"
                   ]
                 }
               }
@@ -349,6 +541,35 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "Delivery failed after retries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "delivery_failed"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "attempts": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "attempts"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -408,6 +629,35 @@
                   },
                   "required": [
                     "status"
+                  ]
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Delivery failed after retries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "delivery_failed"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "attempts": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "attempts"
                   ]
                 }
               }
@@ -480,6 +730,35 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "Delivery failed after retries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "enum": [
+                        "delivery_failed"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "attempts": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "attempts"
+                  ]
+                }
+              }
+            }
           }
         }
       }
@@ -533,6 +812,265 @@
                   },
                   "required": [
                     "exists"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/sessions/{sessionId}/webhooks": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Add a webhook URL for a session",
+        "description": "Register an HTTPS webhook URL to receive realtime incoming WhatsApp message events for the specified session. Multiple webhook URLs may be registered per session. Each registered URL will receive a POST request with a WebhookMessagePayload body when a message arrives.",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWebhookUrlRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Webhook URL created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookUrlRecord"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid sessionId or webhook URL",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "409": {
+            "description": "Duplicate webhook URL for this session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateWebhookUrlError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Webhook URL store unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "List webhook URLs for a session",
+        "description": "Returns all webhook URL records for the specified session sorted by creation time ascending. No authentication secrets or WhatsApp credentials are included in the response.",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook URL records sorted by createdAt ascending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookUrlRecord"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid sessionId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "500": {
+            "description": "Webhook URL store unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/sessions/{sessionId}/webhooks/{id}": {
+      "delete": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Delete a webhook URL",
+        "description": "Removes a webhook URL record by its id. The sessionId in the path must match the record's session; records from other sessions return 404.",
+        "security": [
+          {
+            "Bearer": []
+          },
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "example": "my-session"
+            },
+            "required": true,
+            "name": "sessionId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "example": "a1b2c3d4e5f6a7b8"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook URL deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteWebhookUrlResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid sessionId",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Webhook URL not found or session mismatch",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Webhook URL store unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ]
                 }
               }
