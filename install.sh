@@ -2,7 +2,7 @@
 set -e
 
 # waporta installer
-# Usage: curl -fsSL https://storage.iniadil.dev/wa-porta/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/iniadil/waporta/main/install.sh | sh
 
 REPO="https://github.com/iniadil/waporta.git"
 DIR="waporta"

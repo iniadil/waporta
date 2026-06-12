@@ -1,6 +1,6 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://storage.iniadil.dev/wa-porta/waporta-github-dark.png">
-  <img src="https://storage.iniadil.dev/wa-porta/waporta-github.png" alt="waporta" width="100%" />
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/iniadil/waporta/main/.github/waporta-github-dark.png">
+  <img src="https://raw.githubusercontent.com/iniadil/waporta/main/.github/waporta-github.png" alt="waporta" width="100%" />
 </picture>
 <br />
 <br />
@@ -20,7 +20,7 @@ Built with [Hono](https://hono.dev), [Baileys](https://github.com/WhiskeySockets
 **One command to install and run:**
 
 ```bash
-curl -fsSL https://storage.iniadil.dev/wa-porta/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/iniadil/waporta/main/install.sh | sh
 ```
 
 The script clones the repo, asks for your dashboard credentials, and starts the containers. Done.
