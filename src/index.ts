@@ -11,6 +11,12 @@ import apiKeysRoutes from "./routes/apikeys.js";
 import { authMiddleware, dualAuthMiddleware } from "./middleware/auth.js";
 import { webhookManager } from "./webhooks/singletons.js";
 import { createWebhookRoutes } from "./routes/webhooks.js";
+import { WhatsappError } from "wa-multi-session";
+import {
+  RecipientNotFoundError,
+  SessionWarmingUpError,
+  RateLimitExceededError,
+} from "./lib/session-guard.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -66,6 +72,26 @@ app.use(
 
 app.notFound((c) => c.json({ error: "Not Found" }, 404));
 app.onError((err, c) => {
+  if (err instanceof RecipientNotFoundError) {
+    return c.json({ error: "recipient_not_found", message: err.message }, 422);
+  }
+  if (err instanceof SessionWarmingUpError) {
+    return c.json(
+      { error: "session_warming_up", message: err.message, retryAfterMs: err.remainingMs },
+      429,
+    );
+  }
+  if (err instanceof RateLimitExceededError) {
+    return c.json(
+      { error: "rate_limited", message: err.message, retryAfterMs: err.retryAfterMs },
+      429,
+    );
+  }
+  // Sesi belum siap / tidak ditemukan (mis. saat pra-cek isExist) bukan error
+  // server internal — kembalikan 503 agar pemanggil bisa coba lagi nanti.
+  if (err instanceof WhatsappError) {
+    return c.json({ error: "session_unavailable", message: err.message }, 503);
+  }
   console.error(err);
   if (err instanceof SyntaxError) {
     return c.json({ error: "Invalid or missing JSON body" }, 400);

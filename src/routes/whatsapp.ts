@@ -5,6 +5,7 @@ import {
   sendWithRetry,
   RetriesExhaustedError,
 } from "../lib/send-with-retry.js";
+import { assertCanSend } from "../lib/send-guard.js";
 
 const app = new OpenAPIHono();
 
@@ -18,6 +19,12 @@ const DeliveryFailedResponse = z.object({
   error: z.literal("delivery_failed"),
   message: z.string(),
   attempts: z.number(),
+});
+// Penolakan oleh anti-ban guard / sesi belum siap (422 / 429 / 503).
+const GuardRejectionResponse = z.object({
+  error: z.string(),
+  message: z.string(),
+  retryAfterMs: z.number().optional(),
 });
 
 // List all sessions
@@ -249,18 +256,32 @@ app.openapi(
         description: "Message sent",
         content: { "application/json": { schema: StatusResponse } },
       },
+      422: {
+        description: "Recipient is not registered on WhatsApp",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
+      429: {
+        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
       502: {
         description: "Delivery failed after retries",
         content: { "application/json": { schema: DeliveryFailedResponse } },
+      },
+      503: {
+        description: "Session is not ready (e.g. reconnecting)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
       },
     },
   }),
   async (c) => {
     const { sessionId, to, text, isGroup } = c.req.valid("json");
+    await assertCanSend({ sessionId, to, isGroup });
     try {
       await sendWithRetry({
         sessionId,
         to,
+        isGroup,
         messageType: "text",
         sendFn: () => wa.sendText({ sessionId, to, text, isGroup }),
       });
@@ -306,18 +327,32 @@ app.openapi(
         description: "Image sent",
         content: { "application/json": { schema: StatusResponse } },
       },
+      422: {
+        description: "Recipient is not registered on WhatsApp",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
+      429: {
+        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
       502: {
         description: "Delivery failed after retries",
         content: { "application/json": { schema: DeliveryFailedResponse } },
+      },
+      503: {
+        description: "Session is not ready (e.g. reconnecting)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
       },
     },
   }),
   async (c) => {
     const { sessionId, to, media, text, isGroup } = c.req.valid("json");
+    await assertCanSend({ sessionId, to, isGroup });
     try {
       await sendWithRetry({
         sessionId,
         to,
+        isGroup,
         messageType: "image",
         sendFn: () => wa.sendImage({ sessionId, to, media, text, isGroup }),
       });
@@ -364,19 +399,33 @@ app.openapi(
         description: "Document sent",
         content: { "application/json": { schema: StatusResponse } },
       },
+      422: {
+        description: "Recipient is not registered on WhatsApp",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
+      429: {
+        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
+      },
       502: {
         description: "Delivery failed after retries",
         content: { "application/json": { schema: DeliveryFailedResponse } },
+      },
+      503: {
+        description: "Session is not ready (e.g. reconnecting)",
+        content: { "application/json": { schema: GuardRejectionResponse } },
       },
     },
   }),
   async (c) => {
     const { sessionId, to, media, filename, text, isGroup } =
       c.req.valid("json");
+    await assertCanSend({ sessionId, to, isGroup });
     try {
       await sendWithRetry({
         sessionId,
         to,
+        isGroup,
         messageType: "document",
         sendFn: () =>
           wa.sendDocument({ sessionId, to, media, filename, text, isGroup }),

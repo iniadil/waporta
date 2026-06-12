@@ -1,5 +1,9 @@
 import { writeFileSync } from 'fs'
-import app, { openAPIConfig } from '../src/index.js'
+
+// Cegah koneksi WhatsApp nyata saat hanya men-generate spec (lihat src/wa.ts).
+process.env.WA_DISABLE_AUTOLOAD = 'true'
+
+const { default: app, openAPIConfig } = await import('../src/index.js')
 
 const spec = app.getOpenAPIDocument(openAPIConfig)
 

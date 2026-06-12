@@ -1,8 +1,9 @@
 {
   "name": "waporta",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "tsx watch --env-file=.env index.ts",
     "build": "tsc",
@@ -10,12 +11,13 @@
     "gen:swagger": "tsx scripts/gen-swagger.ts",
     "dashboard:dev": "cd dashboard && npm run dev",
     "dashboard:build": "cd dashboard && npm install && npm run build",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dashboard:dev\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run dashboard:dev\"",
+    "postinstall": "patch-package"
   },
   "devDependencies": {
     "@types/node": "^22",
-    "concurrently": "^9.2.1",
     "@types/nodemailer": "^6.4.17",
+    "concurrently": "^9.2.1",
     "tsx": "^4",
     "typescript": "^5"
   },
@@ -25,8 +27,14 @@
     "@hono/zod-openapi": "^1.2.2",
     "hono": "^4.12.5",
     "nodemailer": "^6.9.16",
+    "patch-package": "^8.0.1",
     "wa-multi-session": "^4.2.3",
     "zod": "^4.3.6"
+  },
+  "overrides": {
+    "wa-multi-session": {
+      "baileys": "7.0.0-rc13"
+    }
   },
   "trustedDependencies": [
     "baileys",

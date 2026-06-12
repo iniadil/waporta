@@ -1,19 +1,27 @@
 import { withRetry, isRetryableWaError, RetriesExhaustedError } from './retry.js'
 import { registry, type FailureDetails } from './notifier.js'
+import { simulateTyping } from './send-guard.js'
 
 type MessageType = 'text' | 'image' | 'document'
 
 interface SendOptions {
   sessionId: string
   to: string
+  isGroup?: boolean
   messageType: MessageType
   sendFn: () => Promise<unknown>
 }
 
 const MAX_RETRIES = 3
-const BASE_DELAY = 1000
+const BASE_DELAY = 3000
 
 export async function sendWithRetry(opts: SendOptions): Promise<void> {
+  // Indikator "mengetik" sebelum mengirim — sekaligus jeda anti-burst.
+  await simulateTyping({
+    sessionId: opts.sessionId,
+    to: opts.to,
+    isGroup: opts.isGroup,
+  })
   try {
     await withRetry(opts.sendFn, {
       maxRetries: MAX_RETRIES,

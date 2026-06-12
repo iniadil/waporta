@@ -5,7 +5,6 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - ./data/baileys_store.db:/app/baileys_store.db
       - ./data/wa_credentials:/app/wa_credentials
       - ./data:/app/data
     environment:

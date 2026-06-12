@@ -13,7 +13,8 @@ FROM node:20-alpine AS builder
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+COPY patches/ ./patches/
+RUN npm ci
 COPY tsconfig.json ./
 COPY index.ts ./
 COPY src/ ./src/
@@ -24,7 +25,8 @@ FROM node:20-alpine AS prod-deps
 RUN apk add --no-cache python3 make g++
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --omit=dev
+COPY patches/ ./patches/
+RUN npm ci --omit=dev
 
 # Stage 4: Production image
 FROM node:20-alpine AS production

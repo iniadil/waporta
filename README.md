@@ -5,7 +5,7 @@
 <br />
 <br />
 
-[![Website](https://img.shields.io/badge/website-waporta.net-black?style=flat-square)](https://waporta.net) [![Docs](https://img.shields.io/badge/docs-waporta.net-blue?style=flat-square)](https://waporta.net/docs) ![Node.js](https://img.shields.io/badge/Node.js-18%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc.6-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
+[![Website](https://img.shields.io/badge/website-waporta.net-black?style=flat-square)](https://waporta.net) [![Docs](https://img.shields.io/badge/docs-waporta.net-blue?style=flat-square)](https://waporta.net/docs) ![Node.js](https://img.shields.io/badge/Node.js-20%2B-brightgreen?style=flat-square) [![Baileys](https://img.shields.io/badge/Baileys-7.0.0--rc13-blue?style=flat-square)](https://www.npmjs.com/package/baileys)
 
 A lightweight, self-hosted WhatsApp unofficial API with a built-in dashboard. Supports **multi-device**, **multi-session**, and **session-scoped incoming message webhooks** out of the box.
 
@@ -61,11 +61,14 @@ curl -X POST http://localhost:3000/api/whatsapp/send/text \
   -d '{"sessionId": "my-session", "to": "6281234567890", "text": "Hello!"}'
 ```
 
+> **Heads up:** A freshly connected session has a **warm-up window** (default 5 minutes) during which sends are rejected with `429`, and every recipient is checked with `isExist` first. This is intentional — it lowers the risk of WhatsApp banning the number. See [Anti-ban Guards](#anti-ban-guards).
+
 ---
 
 ## Why waporta?
 
 - **Multi-device** — uses the latest WhatsApp multi-device protocol via Baileys; no phone needs to stay online
+- **Anti-ban guards** — warm-up window after connect, per-session rate limiting, recipient `isExist` check, and typing simulation to lower the risk of WhatsApp bans
 - **Multi-session** — manage multiple WhatsApp numbers from one server
 - **Lightweight** — minimal dependencies, fast startup, low memory footprint
 - **Dashboard included** — manage sessions, send messages, webhooks, and check numbers from the browser
@@ -111,12 +114,11 @@ git pull && docker compose up -d --build  # upgrade
 
 **Persistent data** (all under `./data/` on the host)
 
-| Path                | Contents                  |
-| ------------------- | ------------------------- |
-| `baileys_store.db`  | SQLite session store      |
-| `wa_credentials/`   | WhatsApp credential files |
-| `api_keys.json`     | API keys                  |
-| `webhook_urls.json` | Session webhook URLs      |
+| Path                | Contents                                            |
+| ------------------- | --------------------------------------------------- |
+| `wa_credentials/`   | WhatsApp session store + credentials (SQLite `database.db`) |
+| `api_keys.json`     | API keys                                            |
+| `webhook_urls.json` | Session webhook URLs                                |
 
 > Back up `./data/` to preserve sessions and API keys across migrations.
 
@@ -128,7 +130,6 @@ docker build -t waporta .
 docker run -d \
   --name waporta \
   -p 3000:3000 \
-  -v $(pwd)/data/baileys_store.db:/app/baileys_store.db \
   -v $(pwd)/data/wa_credentials:/app/wa_credentials \
   -v $(pwd)/data:/app/data \
   -e NODE_ENV=production \
@@ -141,6 +142,8 @@ docker run -d \
 </details>
 
 ### Without Docker
+
+> **Use npm** (Node.js 20+). waporta pins Baileys via the npm `overrides` field and applies dependency patches with `patch-package` on `postinstall` — both are npm-specific, so `pnpm` and `yarn` will not produce a working install.
 
 ```bash
 git clone https://github.com/iniadil/waporta.git
@@ -360,14 +363,15 @@ curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session/webhooks/a
 
 ## Retry & Failure Notifications
 
-When a message fails to send (e.g. session disconnected), waporta automatically retries up to **3 times** with exponential backoff (1s, 2s, 4s). If all retries fail, it returns a `502` response and optionally notifies you via email or webhook.
+When a message fails to send due to a transient network error, waporta automatically retries up to **3 times** with exponential backoff and jitter (base 3s). Connection-drop errors are **not** retried — hammering a just-disconnected socket can deepen a ban. If all retries fail, it returns a `502` response and optionally notifies you via email or webhook.
 
 ### Error behavior
 
 | Error type | Example | Behavior |
 | --- | --- | --- |
-| Retryable | Session disconnected, timeout, connection reset | Retry up to 3 times |
-| Non-retryable | Session not found, invalid media, validation error | Fail immediately |
+| Retryable | Transient network errors (`timeout`, `etimedout`, `econnreset`) | Retry up to 3 times with backoff + jitter |
+| Non-retryable | Connection dropped/closed, session not found, invalid media, validation error | Fail immediately |
+| Guard rejection | Warm-up window, rate limit, unregistered recipient | Return `422`/`429` immediately — **not** retried (see [Anti-ban Guards](#anti-ban-guards)) |
 
 ### Failed delivery response
 
@@ -418,14 +422,45 @@ Webhook payload:
 
 ---
 
+## Anti-ban Guards
+
+To lower the risk of WhatsApp banning a connected number, every send endpoint runs a set of checks before dispatching. Guard rejections return immediately and do **not** trigger the retry mechanism.
+
+| Guard | Behavior | Response when blocked |
+| --- | --- | --- |
+| **Warm-up window** | Sends are blocked for a period after a session connects/reconnects — sending right after pairing is a strong ban signal | `429 session_warming_up` + `retryAfterMs` |
+| **Rate limit** | Per-session sliding-window cap on outgoing messages | `429 rate_limited` + `retryAfterMs` |
+| **Recipient check** | Non-group sends are validated with `isExist`; sending to unregistered numbers is a strong spam signal | `422 recipient_not_found` |
+| **Typing simulation** | A randomized "typing" indicator is shown before each send (best-effort) | — |
+| **Session not ready** | Session is reconnecting / unavailable | `503 session_unavailable` |
+
+Group sends (`"isGroup": true`) skip the recipient check.
+
+### Configuration
+
+All thresholds are environment variables (defaults shown). Set any value to `0` to disable that guard.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SEND_WARMUP_MS` | `300000` (5 min) | Block sends for this long after a session connects/reconnects |
+| `SEND_RATE_MAX` | `20` | Max messages per session within the rate window |
+| `SEND_RATE_WINDOW_MS` | `60000` (1 min) | Rolling window for the rate limit |
+| `SEND_TYPING_MIN_MS` | `800` | Min typing-indicator duration before each send |
+| `SEND_TYPING_MAX_MS` | `2500` | Max typing-indicator duration before each send |
+
+> These guards lower ban risk but do not eliminate it. Datacenter/VPS IPs and brand-new numbers remain higher-risk — warm up new numbers gradually before sending at volume.
+
+---
+
 ## Notes
 
 - Phone numbers: country code without `+`, e.g. `6281234567890`
 - Group messages: add `"isGroup": true` to the request body
-- Session data is stored in SQLite (`baileys_store.db`)
+- Session data is stored in SQLite under `wa_credentials/database.db`
 - API keys are stored in `data/api_keys.json`
 - Session webhook URLs are stored in `data/webhook_urls.json`
 - `DEFAULT_API_KEY` in `.env` works without creating a key from the dashboard
+- **Install with npm** (Node.js 20+) — the Baileys version pin (`overrides`) and dependency patches (`patch-package`) are npm-specific; `pnpm`/`yarn` will not apply them
 
 ---
 

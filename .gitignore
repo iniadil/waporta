@@ -46,7 +46,10 @@ wa_credentials
 CLAUDE.md
 .claude
 
-package-lock.json
+# local AI/agent tooling (not part of the project)
+.agents
+.kiro
+AGENTS.md
 
 # ignore data api keys
 data/*

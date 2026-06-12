@@ -35,8 +35,11 @@ export async function withRetry<T>(
       )
 
       if (attempt < opts.maxRetries) {
-        const delay = opts.baseDelay * Math.pow(2, attempt - 1)
-        await new Promise((r) => setTimeout(r, delay))
+        // Exponential backoff + jitter acak agar percobaan ulang tidak
+        // sinkron (burst) saat banyak permintaan gagal bersamaan.
+        const backoff = opts.baseDelay * Math.pow(2, attempt - 1)
+        const jitter = Math.random() * opts.baseDelay
+        await new Promise((r) => setTimeout(r, backoff + jitter))
       }
     }
   }
@@ -44,16 +47,15 @@ export async function withRetry<T>(
   throw new RetriesExhaustedError(lastError, opts.maxRetries)
 }
 
+// Hanya error jaringan transien murni yang aman dicoba ulang. Sinyal yang
+// menandakan koneksi diputus oleh WhatsApp ('disconnected', 'connection
+// closed', 'socket hang up') sengaja TIDAK di-retry: mengirim ulang pesan ke
+// koneksi yang baru saja diputus menyerupai hammering dan dapat memperdalam
+// pemblokiran. Koneksi yang putus harus dipulihkan dulu lewat reconnect.
 const RETRYABLE_PATTERNS = [
-  'not ready',
-  'disconnected',
   'timeout',
   'etimedout',
   'econnreset',
-  'econnrefused',
-  'enotfound',
-  'connection closed',
-  'socket hang up',
 ]
 
 const NON_RETRYABLE_PATTERNS = ['not exist', 'invalid media', 'validation']

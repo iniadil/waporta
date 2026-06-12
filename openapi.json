@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "WA Porta API",
-    "version": "1.1.1",
+    "version": "3.0.0",
     "description": "WhatsApp Gateway REST API powered by Baileys"
   },
   "components": {
@@ -542,6 +542,56 @@
               }
             }
           },
+          "422": {
+            "description": "Recipient is not registered on WhatsApp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
           "502": {
             "description": "Delivery failed after retries",
             "content": {
@@ -566,6 +616,31 @@
                     "error",
                     "message",
                     "attempts"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session is not ready (e.g. reconnecting)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }
@@ -634,6 +709,56 @@
               }
             }
           },
+          "422": {
+            "description": "Recipient is not registered on WhatsApp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
           "502": {
             "description": "Delivery failed after retries",
             "content": {
@@ -658,6 +783,31 @@
                     "error",
                     "message",
                     "attempts"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session is not ready (e.g. reconnecting)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }
@@ -731,6 +881,56 @@
               }
             }
           },
+          "422": {
+            "description": "Recipient is not registered on WhatsApp",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
           "502": {
             "description": "Delivery failed after retries",
             "content": {
@@ -755,6 +955,31 @@
                     "error",
                     "message",
                     "attempts"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Session is not ready (e.g. reconnecting)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }

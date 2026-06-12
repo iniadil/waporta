@@ -1,0 +1,46 @@
+diff --git a/node_modules/wa-multi-session/dist/Whatsapp/Whatsapp.js b/node_modules/wa-multi-session/dist/Whatsapp/Whatsapp.js
+index 0d9ff70..b19c430 100644
+--- a/node_modules/wa-multi-session/dist/Whatsapp/Whatsapp.js
++++ b/node_modules/wa-multi-session/dist/Whatsapp/Whatsapp.js
+@@ -362,13 +362,14 @@ class Whatsapp {
+                                 const code = (_f = (_e = lastDisconnect === null || lastDisconnect === void 0 ? void 0 : lastDisconnect.error) === null || _e === void 0 ? void 0 : _e.output) === null || _f === void 0 ? void 0 : _f.statusCode;
+                                 let retryAttempt = (_g = this.retryCount.get(sessionId)) !== null && _g !== void 0 ? _g : 0;
+                                 let shouldRetry = false;
+-                                if (code != baileys_1.DisconnectReason.loggedOut && retryAttempt < 10) {
++                                if (code != baileys_1.DisconnectReason.loggedOut && code !== baileys_1.DisconnectReason.forbidden && code !== baileys_1.DisconnectReason.badSession && retryAttempt < 10) {
+                                     shouldRetry = true;
+                                 }
+                                 if (shouldRetry) {
+                                     retryAttempt++;
+                                     this.retryCount.set(sessionId, retryAttempt);
+-                                    startSocket();
++                                    const _backoffMs = Math.min(2000 * Math.pow(2, retryAttempt - 1), 60000) + Math.floor(Math.random() * 1000);
++                                    setTimeout(() => startSocket(), _backoffMs);
+                                 }
+                                 else {
+                                     const session = this.sessions.get(sessionId);
+@@ -494,13 +495,14 @@ class Whatsapp {
+                                 const code = (_g = (_f = lastDisconnect === null || lastDisconnect === void 0 ? void 0 : lastDisconnect.error) === null || _f === void 0 ? void 0 : _f.output) === null || _g === void 0 ? void 0 : _g.statusCode;
+                                 let retryAttempt = (_h = this.retryCount.get(sessionId)) !== null && _h !== void 0 ? _h : 0;
+                                 let shouldRetry = false;
+-                                if (code != baileys_1.DisconnectReason.loggedOut && retryAttempt < 10) {
++                                if (code != baileys_1.DisconnectReason.loggedOut && code !== baileys_1.DisconnectReason.forbidden && code !== baileys_1.DisconnectReason.badSession && retryAttempt < 10) {
+                                     shouldRetry = true;
+                                 }
+                                 if (shouldRetry) {
+                                     retryAttempt++;
+                                     this.retryCount.set(sessionId, retryAttempt);
+-                                    startSocket();
++                                    const _backoffMs = Math.min(2000 * Math.pow(2, retryAttempt - 1), 60000) + Math.floor(Math.random() * 1000);
++                                    setTimeout(() => startSocket(), _backoffMs);
+                                 }
+                                 else {
+                                     const session = this.sessions.get(sessionId);
+@@ -615,6 +617,7 @@ class Whatsapp {
+                         continue;
+                     }
+                     yield this.startSession(sessionId);
++                    yield new Promise((resolve) => setTimeout(resolve, 2500));
+                 }
+             }
+             catch (error) {
