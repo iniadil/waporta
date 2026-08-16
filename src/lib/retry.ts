@@ -52,11 +52,20 @@ export async function withRetry<T>(
 // closed', 'socket hang up') sengaja TIDAK di-retry: mengirim ulang pesan ke
 // koneksi yang baru saja diputus menyerupai hammering dan dapat memperdalam
 // pemblokiran. Koneksi yang putus harus dipulihkan dulu lewat reconnect.
-const RETRYABLE_PATTERNS = [
-  'timeout',
-  'etimedout',
-  'econnreset',
-]
+//
+// Timeout juga dikeluarkan dari daftar secara default karena sifatnya AMBIGU.
+// `sendRawMessage` di Baileys membungkus `ws.send` dalam promiseTimeout, jadi
+// timeout bisa terjadi setelah frame benar-benar masuk ke koneksi — kirim ulang
+// pada kondisi itu menghasilkan pesan ganda di sisi penerima, yang persis
+// dikeluhkan sebagai "kadang terkirim dua kali". Tidak ada cara membedakan
+// timeout-sebelum-terkirim dari timeout-sesudah-terkirim, jadi pilihan yang
+// benar adalah tidak menebak. SEND_RETRY_ON_TIMEOUT=true mengembalikan
+// perilaku lama bagi yang lebih memilih risiko duplikasi daripada kehilangan.
+const RETRY_ON_TIMEOUT = process.env.SEND_RETRY_ON_TIMEOUT === 'true'
+
+const RETRYABLE_PATTERNS = RETRY_ON_TIMEOUT
+  ? ['timeout', 'etimedout', 'econnreset']
+  : ['econnreset']
 
 const NON_RETRYABLE_PATTERNS = ['not exist', 'invalid media', 'validation']
 

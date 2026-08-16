@@ -39,6 +39,22 @@ export interface WebhookMessagePayload {
   raw: unknown
 }
 
+/**
+ * Peristiwa perubahan status pengiriman untuk pesan yang KITA kirim.
+ * Sengaja memakai nilai `event` yang berbeda dari 'message.received' agar
+ * consumer bisa membedakan keduanya; consumer lama yang hanya menangani
+ * 'message.received' tidak akan pernah menerima ini kecuali fitur diaktifkan
+ * lewat WEBHOOK_STATUS_EVENTS.
+ */
+export interface WebhookStatusPayload {
+  event: 'message.status'
+  sessionId: string
+  messageId: string
+  recipient?: string
+  status: 'pending' | 'server' | 'delivered' | 'read' | 'played' | 'error'
+  timestamp: number
+}
+
 export interface WebhookDispatchResult {
   sessionId: string
   attempted: number

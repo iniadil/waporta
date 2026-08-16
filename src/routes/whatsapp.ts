@@ -6,6 +6,8 @@ import {
   RetriesExhaustedError,
 } from "../lib/send-with-retry.js";
 import { assertCanSend } from "../lib/send-guard.js";
+import * as messageState from "../lib/message-state.js";
+import * as messageLog from "../lib/message-log.js";
 
 const app = new OpenAPIHono();
 
@@ -13,19 +15,80 @@ const SessionIdParam = z.object({
   sessionId: z.string().openapi({ example: "my-session" }),
 });
 
-const StatusResponse = z.object({ status: z.string() });
+const StatusResponse = z.object({
+  status: z.string().openapi({
+    example: "sent",
+    description:
+      '"sent" berarti pesan berhasil ditulis ke koneksi WhatsApp — bukan konfirmasi bahwa pesan sudah diterima server atau sampai ke penerima. Pantau status sebenarnya lewat GET /messages/{messageId} atau webhook "message.status".',
+  }),
+  messageId: z.string().optional().openapi({
+    example: "3EB0A1B2C3D4E5F6",
+    description:
+      "ID pesan WhatsApp. Dipakai untuk melacak status pengiriman. Tidak ada bila WhatsApp tidak mengembalikan ID.",
+  }),
+  ack: z.literal("socket").optional().openapi({
+    description:
+      "Tingkat konfirmasi yang sudah dicapai saat respons ini dibuat. Selalu \"socket\" — tingkat di atasnya (server/delivered/read) datang belakangan secara asinkron.",
+  }),
+});
 const ErrorResponse = z.object({ error: z.string() });
 const DeliveryFailedResponse = z.object({
   error: z.literal("delivery_failed"),
   message: z.string(),
   attempts: z.number(),
 });
-// Penolakan oleh anti-ban guard / sesi belum siap (422 / 429 / 503).
+// Penolakan oleh anti-ban guard / sesi belum siap (403 / 422 / 429 / 503).
 const GuardRejectionResponse = z.object({
   error: z.string(),
   message: z.string(),
   retryAfterMs: z.number().optional(),
 });
+
+/**
+ * Ambil ID pesan dari hasil kirim Baileys lalu catat supaya event status yang
+ * datang belakangan bisa dikaitkan kembali ke permintaan HTTP ini.
+ */
+function trackSent(
+  sent: unknown,
+  meta: { sessionId: string; to: string; messageType: "text" | "image" | "document" },
+): string | undefined {
+  const messageId = (sent as { key?: { id?: string } } | undefined)?.key?.id;
+  if (messageId) messageState.record({ ...meta, messageId });
+  messageLog.append({
+    event: "message.out",
+    sessionId: meta.sessionId,
+    messageId,
+    peer: meta.to,
+    messageType: meta.messageType,
+    status: "socket",
+  });
+  return messageId;
+}
+
+// Dipakai oleh ketiga endpoint kirim.
+const SEND_RESPONSES = {
+  403: {
+    description: "Session was rejected by WhatsApp (number appears to be blocked)",
+    content: { "application/json": { schema: GuardRejectionResponse } },
+  },
+  422: {
+    description: "Recipient is not registered on WhatsApp",
+    content: { "application/json": { schema: GuardRejectionResponse } },
+  },
+  429: {
+    description:
+      'Rejected by an anti-ban guard. The "error" field distinguishes them: "session_warming_up" (retry after the warm-up window), "rate_limited" (short sliding window), or "daily_quota_exceeded" (a new session\'s ramp-up quota, which only resets at midnight — note the much larger retryAfterMs).',
+    content: { "application/json": { schema: GuardRejectionResponse } },
+  },
+  502: {
+    description: "Delivery failed after retries",
+    content: { "application/json": { schema: DeliveryFailedResponse } },
+  },
+  503: {
+    description: "Session is not ready (e.g. reconnecting)",
+    content: { "application/json": { schema: GuardRejectionResponse } },
+  },
+};
 
 // List all sessions
 app.openapi(
@@ -253,39 +316,25 @@ app.openapi(
     },
     responses: {
       200: {
-        description: "Message sent",
+        description: "Message written to the WhatsApp connection",
         content: { "application/json": { schema: StatusResponse } },
       },
-      422: {
-        description: "Recipient is not registered on WhatsApp",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      429: {
-        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      502: {
-        description: "Delivery failed after retries",
-        content: { "application/json": { schema: DeliveryFailedResponse } },
-      },
-      503: {
-        description: "Session is not ready (e.g. reconnecting)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
+      ...SEND_RESPONSES,
     },
   }),
   async (c) => {
     const { sessionId, to, text, isGroup } = c.req.valid("json");
     await assertCanSend({ sessionId, to, isGroup });
     try {
-      await sendWithRetry({
+      const sent = await sendWithRetry({
         sessionId,
         to,
         isGroup,
         messageType: "text",
         sendFn: () => wa.sendText({ sessionId, to, text, isGroup }),
       });
-      return c.json({ status: "sent" }, 200 as const);
+      const messageId = trackSent(sent, { sessionId, to, messageType: "text" });
+      return c.json({ status: "sent", messageId, ack: "socket" as const }, 200 as const);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1;
@@ -324,39 +373,25 @@ app.openapi(
     },
     responses: {
       200: {
-        description: "Image sent",
+        description: "Image written to the WhatsApp connection",
         content: { "application/json": { schema: StatusResponse } },
       },
-      422: {
-        description: "Recipient is not registered on WhatsApp",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      429: {
-        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      502: {
-        description: "Delivery failed after retries",
-        content: { "application/json": { schema: DeliveryFailedResponse } },
-      },
-      503: {
-        description: "Session is not ready (e.g. reconnecting)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
+      ...SEND_RESPONSES,
     },
   }),
   async (c) => {
     const { sessionId, to, media, text, isGroup } = c.req.valid("json");
     await assertCanSend({ sessionId, to, isGroup });
     try {
-      await sendWithRetry({
+      const sent = await sendWithRetry({
         sessionId,
         to,
         isGroup,
         messageType: "image",
         sendFn: () => wa.sendImage({ sessionId, to, media, text, isGroup }),
       });
-      return c.json({ status: "sent" }, 200 as const);
+      const messageId = trackSent(sent, { sessionId, to, messageType: "image" });
+      return c.json({ status: "sent", messageId, ack: "socket" as const }, 200 as const);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1;
@@ -396,25 +431,10 @@ app.openapi(
     },
     responses: {
       200: {
-        description: "Document sent",
+        description: "Document written to the WhatsApp connection",
         content: { "application/json": { schema: StatusResponse } },
       },
-      422: {
-        description: "Recipient is not registered on WhatsApp",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      429: {
-        description: "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
-      502: {
-        description: "Delivery failed after retries",
-        content: { "application/json": { schema: DeliveryFailedResponse } },
-      },
-      503: {
-        description: "Session is not ready (e.g. reconnecting)",
-        content: { "application/json": { schema: GuardRejectionResponse } },
-      },
+      ...SEND_RESPONSES,
     },
   }),
   async (c) => {
@@ -422,7 +442,7 @@ app.openapi(
       c.req.valid("json");
     await assertCanSend({ sessionId, to, isGroup });
     try {
-      await sendWithRetry({
+      const sent = await sendWithRetry({
         sessionId,
         to,
         isGroup,
@@ -430,7 +450,8 @@ app.openapi(
         sendFn: () =>
           wa.sendDocument({ sessionId, to, media, filename, text, isGroup }),
       });
-      return c.json({ status: "sent" }, 200 as const);
+      const messageId = trackSent(sent, { sessionId, to, messageType: "document" });
+      return c.json({ status: "sent", messageId, ack: "socket" as const }, 200 as const);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       const attempts = err instanceof RetriesExhaustedError ? err.attempts : 1;
@@ -439,6 +460,66 @@ app.openapi(
         502 as const,
       );
     }
+  },
+);
+
+// Get delivery status of a sent message
+app.openapi(
+  createRoute({
+    method: "get",
+    path: "/messages/{messageId}",
+    tags: ["Messaging"],
+    summary: "Get delivery status of a sent message",
+    description:
+      'Status sebenarnya dari pesan yang dikirim lewat gateway ini, diperbarui dari event WhatsApp. Urutan normal: socket -> pending -> server -> delivered -> read. Status bertahan di "socket" berarti WhatsApp tidak pernah mengonfirmasi apa pun. Data disimpan in-memory, jadi hilang saat proses restart dan hanya mencakup MESSAGE_STATE_MAX pesan terakhir.',
+    request: {
+      params: z.object({
+        messageId: z.string().openapi({ example: "3EB0A1B2C3D4E5F6" }),
+      }),
+    },
+    responses: {
+      200: {
+        description: "Current delivery status",
+        content: {
+          "application/json": {
+            schema: z.object({
+              messageId: z.string(),
+              sessionId: z.string(),
+              to: z.string(),
+              messageType: z.enum(["text", "image", "document"]),
+              status: z.enum([
+                "socket",
+                "pending",
+                "server",
+                "delivered",
+                "read",
+                "played",
+                "error",
+              ]),
+              createdAt: z.number(),
+              updatedAt: z.number(),
+            }),
+          },
+        },
+      },
+      404: {
+        description: "Message is unknown or its record has expired",
+        content: { "application/json": { schema: ErrorResponse } },
+      },
+      409: {
+        description: "Message tracking is disabled (MESSAGE_STATE_MAX=0)",
+        content: { "application/json": { schema: ErrorResponse } },
+      },
+    },
+  }),
+  async (c) => {
+    const { messageId } = c.req.valid("param");
+    if (!messageState.isEnabled()) {
+      return c.json({ error: "message_state_disabled" }, 409 as const);
+    }
+    const found = messageState.get(messageId);
+    if (!found) return c.json({ error: "message_not_found" }, 404 as const);
+    return c.json(found, 200 as const);
   },
 );
 

@@ -1,11 +1,17 @@
 import nodemailer from 'nodemailer'
 
 export interface FailureDetails {
+  /**
+   * 'send' = satu pesan gagal terkirim. 'session' = masalah pada sesinya
+   * sendiri, mis. nomor ditolak WhatsApp — tidak terikat ke satu penerima.
+   * Opsional demi kompatibilitas dengan pemanggil lama.
+   */
+  kind?: 'send' | 'session'
   sessionId: string
-  to: string
-  messageType: 'text' | 'image' | 'document'
+  to?: string
+  messageType?: 'text' | 'image' | 'document'
   error: string
-  attempts: number
+  attempts?: number
   timestamp: string
 }
 
@@ -40,14 +46,18 @@ class EmailNotifier implements Notifier {
   }
 
   async notify(details: FailureDetails): Promise<void> {
+    const subject =
+      details.kind === 'session'
+        ? `[WaPorta] Session rejected by WhatsApp — Session: ${details.sessionId}`
+        : `[WaPorta] Message delivery failed — Session: ${details.sessionId}`
     await this.transporter.sendMail({
       to: this.recipient,
-      subject: `[WaPorta] Message delivery failed — Session: ${details.sessionId}`,
+      subject,
       text: [
         `Session   : ${details.sessionId}`,
-        `Recipient : ${details.to}`,
-        `Type      : ${details.messageType}`,
-        `Attempts  : ${details.attempts}`,
+        `Recipient : ${details.to ?? '-'}`,
+        `Type      : ${details.messageType ?? '-'}`,
+        `Attempts  : ${details.attempts ?? '-'}`,
         `Error     : ${details.error}`,
         `Time      : ${details.timestamp}`,
       ].join('\n'),
