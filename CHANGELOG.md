@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] - 2026-08-16
 
 Addresses three recurring user reports: sends reported as successful that never
 arrived, freshly paired numbers getting banned after a single message, and the
@@ -76,6 +76,25 @@ three defaults change behavior — see "Changed".
   throwing away the only identifier linking a request to its delivery status.
 - A request rejected by one guard no longer consumes the rate-limit window or the
   daily quota; both are recorded only after every check has passed.
+- A corrupt or unreadable `data/session_health.json` no longer throttles a mature
+  gateway to the day-one quota of 20 messages forever. When the store cannot be
+  persisted, session age is unknowable, so the daily quota is skipped and
+  reconnects are no longer treated as first pairings.
+- A malformed store whose `records` is not an array is now rejected at load time
+  instead of failing every `/send/*` request with a 500.
+- `SEND_MAX_RETRIES=0` is treated as a single attempt. It previously skipped the
+  send entirely and failed every request with a 502.
+- Daily quota no longer jumps a tier at midnight. A number paired at 23:55 used to
+  reach the day-two allowance five minutes later; session age now also requires a
+  full 24 hours to elapse.
+- Adoption of pre-existing sessions no longer overwrites session history that was
+  actually read from the store, so a restored or partially written
+  `session_health.json` cannot mark a freshly paired number as 400 days old.
+- Retried sends now consume a rate-limit slot each. One HTTP request could
+  previously issue `SEND_MAX_RETRIES` real sends against a single slot.
+- `GET /api/whatsapp/messages/{messageId}` no longer regresses. Out-of-order
+  `messages.update` batches and acks replayed after a reconnect could move a
+  message back from `read` to `delivered`; status is now monotonic.
 
 ## [3.0.0] - 2026-06-13
 

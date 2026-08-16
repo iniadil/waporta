@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "WA Porta API",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "description": "WhatsApp Gateway REST API powered by Baileys"
   },
   "components": {

@@ -79,6 +79,8 @@ export class SessionHealthStore {
   private adoptedAt: string | undefined
   /** True hanya pada proses pertama setelah fitur ini dipasang. */
   private needsAdoption = false
+  /** sessionId yang riwayatnya benar-benar dibaca dari file saat init. */
+  private loadedIds = new Set<string>()
 
   init(): void {
     if (this.loaded) return
@@ -87,11 +89,21 @@ export class SessionHealthStore {
       mkdirSync(DIR, { recursive: true })
       const raw = readFileSync(FILE, 'utf-8')
       const parsed: unknown = JSON.parse(raw)
-      if (parsed && typeof parsed === 'object' && 'records' in parsed) {
+      // Array.isArray wajib, bukan sekadar `'records' in parsed`: file berisi
+      // {"records": null} atau {"records": {}} akan lolos pemeriksaan properti
+      // dan baru meledak nanti di this.records.find() — yaitu pada permintaan
+      // /send/* pertama, sebagai 500. Lebih baik ditangkap di sini sebagai
+      // format tak dikenal.
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as SessionHealthStoreFile).records)) {
         const file = parsed as SessionHealthStoreFile
         this.records = file.records
         this.adoptedAt = file.adoptedAt
         this.needsAdoption = file.adoptedAt === undefined
+        // Sesi yang benar-benar berasal dari file, dipakai adoptExisting() untuk
+        // membedakan riwayat tersimpan dari record yang baru dibuat boot ini.
+        for (const rec of file.records) {
+          if (rec?.sessionId) this.loadedIds.add(rec.sessionId)
+        }
       } else {
         throw new Error('unrecognized store format')
       }
@@ -144,12 +156,23 @@ export class SessionHealthStore {
 
     const backdated = new Date(Date.now() - ADOPTED_AGE_DAYS * 86_400_000).toISOString()
     const adopted: string[] = []
+    const skipped: string[] = []
     for (const sessionId of sessionIds) {
       const existing = this.get(sessionId)
       if (existing) {
-        // Ditimpa tanpa syarat: autoLoad bisa menyambungkan sesi lebih dulu dan
-        // menandainya baru di-pair beberapa detik sebelum adopsi selesai. Pada
-        // proses pertama ini, apa pun yang sudah ada di daftar sesi tersimpan
+        // Record yang riwayatnya dibaca dari file TIDAK boleh ditimpa. Store
+        // bisa saja ada tapi belum sempat menulis `adoptedAt` — mis. proses mati
+        // di antara markConnected pertama dan adopsi, atau file dipulihkan dari
+        // cadangan yang mendahului penanda itu. Membackdate record semacam itu
+        // akan menandai nomor yang baru di-pair kemarin sebagai berumur 400 hari
+        // dan mematikan warm-up serta ramp-up untuknya secara permanen.
+        if (this.loadedIds.has(sessionId)) {
+          skipped.push(sessionId)
+          continue
+        }
+        // Sisanya dibuat pada boot ini juga: autoLoad bisa menyambungkan sesi
+        // lebih dulu dan menandainya baru di-pair beberapa detik sebelum adopsi
+        // selesai. Tanpa riwayat tersimpan, sesi yang sudah ada di daftar sesi
         // menurut definisi mendahului fitur ini.
         existing.firstConnectedAt = backdated
         existing.sentPerDay = {}
@@ -165,6 +188,11 @@ export class SessionHealthStore {
         `[session-health] ${adopted.length} sesi yang sudah ada ditandai matang: ${adopted.join(', ')}`,
       )
     }
+    if (skipped.length > 0) {
+      console.log(
+        `[session-health] ${skipped.length} sesi dilewati karena sudah punya riwayat tersimpan: ${skipped.join(', ')}`,
+      )
+    }
     await this.persist()
     return adopted
   }
@@ -177,6 +205,12 @@ export class SessionHealthStore {
    * `jid` opsional; bila diberikan dan berbeda dari yang tersimpan, riwayat
    * lama dibuang. sessionId yang sama dipakai ulang untuk nomor lain berarti
    * nomor itu mentah dan tidak boleh mewarisi umur nomor sebelumnya.
+   *
+   * Saat store tidak operasional, hasilnya SELALU `false` (bukan pairing baru).
+   * Tanpa persistensi, setiap sesi terlihat mentah pada setiap restart, sehingga
+   * sikap "aman" justru mengunci gateway produksi ke warm-up 30 menit dan kuota
+   * hari-1 selamanya — kerusakan yang jauh lebih besar daripada warm-up singkat
+   * pada nomor yang kebetulan memang baru.
    */
   async markConnected(sessionId: string, jid?: string): Promise<boolean> {
     const nowIso = new Date().toISOString()
@@ -199,7 +233,7 @@ export class SessionHealthStore {
     delete record.bannedAt
 
     await this.persist()
-    return isCold
+    return this.operational ? isCold : false
   }
 
   /** Tandai sesi ditolak WhatsApp agar pengiriman berikutnya ditolak tegas. */
@@ -229,10 +263,13 @@ export class SessionHealthStore {
   /**
    * Umur sesi dalam hari kalender, dihitung 1 pada hari sesi pertama tersambung.
    *
-   * Sengaja memakai selisih tanggal kalender, bukan selisih 24 jam, supaya
-   * konsisten dengan sentToday() yang juga berbasis tanggal. Kalau keduanya
-   * berbeda, nomor yang di-pair menjelang tengah malam akan mendapat kuota
-   * hari-1 dua kali dalam beberapa jam.
+   * Diambil nilai TERKECIL antara selisih tanggal kalender dan selisih 24 jam
+   * penuh. Keduanya perlu karena masing-masing salah di ujung yang berbeda:
+   * kalender saja membuat nomor yang di-pair pukul 23.55 naik ke kuota hari-2
+   * lima menit kemudian (20 + 50 pesan dalam satu jam pertama — persis burst
+   * yang hendak dicegah ramp-up), sedangkan 24 jam saja tidak sinkron dengan
+   * sentToday() yang di-reset tengah malam. Yang terkecil berarti nomor itu
+   * paling banter mengulang kuota hari-1 setelah tengah malam, bukan melompat.
    *
    * Mengembalikan undefined bila sesi belum pernah tersambung atau tidak punya
    * record — sesi semacam itu tidak dikenai ramp-up.
@@ -242,9 +279,10 @@ export class SessionHealthStore {
     if (!first) return undefined
     const at = new Date(first)
     if (Number.isNaN(at.getTime())) return undefined
-    const diff = daysBetween(dayKey(at), dayKey())
-    if (diff === undefined) return undefined
-    return diff + 1
+    const calendarDays = daysBetween(dayKey(at), dayKey())
+    if (calendarDays === undefined) return undefined
+    const elapsedDays = Math.floor(Math.max(0, Date.now() - at.getTime()) / 86_400_000)
+    return Math.min(calendarDays, elapsedDays) + 1
   }
 
   /**

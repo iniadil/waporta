@@ -12,6 +12,12 @@ export interface RetryOptions {
   maxRetries: number
   baseDelay: number
   isRetryable: (err: unknown) => boolean
+  /**
+   * Dipanggil tepat sebelum setiap percobaan ULANG (percobaan ke-2 dan
+   * seterusnya). Dipakai pemanggil untuk mencatat bahwa satu pengiriman nyata
+   * lagi akan menuju WhatsApp — retry bukan peristiwa gratis bagi guard.
+   */
+  onRetry?: (attempt: number) => void
 }
 
 export async function withRetry<T>(
@@ -40,6 +46,7 @@ export async function withRetry<T>(
         const backoff = opts.baseDelay * Math.pow(2, attempt - 1)
         const jitter = Math.random() * opts.baseDelay
         await new Promise((r) => setTimeout(r, backoff + jitter))
+        opts.onRetry?.(attempt + 1)
       }
     }
   }

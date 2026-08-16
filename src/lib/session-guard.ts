@@ -205,6 +205,11 @@ export function assertNotBanned(sessionId: string) {
  */
 export function assertWithinDailyQuota(sessionId: string) {
   if (RAMPUP_DAILY.length === 0) return
+  // Tanpa persistensi, umur sesi tidak bisa dipercaya: setiap restart membuat
+  // sesi produksi yang matang tampak baru di-pair dan mengunci gateway ke 20
+  // pesan/hari tanpa pernah pulih sendiri. Ramp-up hanya bermakna bila umurnya
+  // benar-benar terlacak, jadi guard ini dilewati saat store turun.
+  if (!sessionHealth.isOperational()) return
   const day = sessionHealth.ageInDays(sessionId)
   if (day === undefined) return
   if (day > RAMPUP_DAILY.length) return

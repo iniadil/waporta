@@ -80,13 +80,34 @@ export function record(entry: {
 }
 
 /**
+ * Peringkat kemajuan pengiriman. 'error' sengaja tertinggi: status itu final dan
+ * tidak boleh tertimpa ack yang datang belakangan.
+ */
+const RANK: Record<DeliveryStatus, number> = {
+  socket: 0,
+  pending: 1,
+  server: 2,
+  delivered: 3,
+  read: 4,
+  played: 5,
+  error: 6,
+}
+
+/**
  * Perbarui status dari event WhatsApp. Pesan yang tidak dikenal (mis. dikirim
  * dari HP pengguna langsung, atau sudah ter-evict) diabaikan — bukan error.
+ *
+ * Status hanya boleh maju. Baileys bisa mengirim batch `messages.update` tidak
+ * berurutan atau memutar ulang ack yang tertunda setelah reconnect; tanpa
+ * pemeriksaan ini, GET /messages/{id} bisa mundur dari `read` ke `delivered` dan
+ * melanggar kontrak socket -> pending -> server -> delivered -> read yang
+ * didokumentasikan.
  */
 export function updateStatus(messageId: string, status: DeliveryStatus): void {
   if (!isEnabled()) return
   const existing = records.get(messageId)
   if (!existing) return
+  if (RANK[status] <= RANK[existing.status]) return
   existing.status = status
   existing.updatedAt = Date.now()
 }
