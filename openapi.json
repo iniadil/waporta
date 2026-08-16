@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "WA Porta API",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "description": "WhatsApp Gateway REST API powered by Baileys"
   },
   "components": {
@@ -525,18 +525,57 @@
         },
         "responses": {
           "200": {
-            "description": "Message sent",
+            "description": "Message written to the WhatsApp connection",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "status": {
-                      "type": "string"
+                      "type": "string",
+                      "example": "sent",
+                      "description": "\"sent\" berarti pesan berhasil ditulis ke koneksi WhatsApp — bukan konfirmasi bahwa pesan sudah diterima server atau sampai ke penerima. Pantau status sebenarnya lewat GET /messages/{messageId} atau webhook \"message.status\"."
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "example": "3EB0A1B2C3D4E5F6",
+                      "description": "ID pesan WhatsApp. Dipakai untuk melacak status pengiriman. Tidak ada bila WhatsApp tidak mengembalikan ID."
+                    },
+                    "ack": {
+                      "type": "string",
+                      "enum": [
+                        "socket"
+                      ],
+                      "description": "Tingkat konfirmasi yang sudah dicapai saat respons ini dibuat. Selalu \"socket\" — tingkat di atasnya (server/delivered/read) datang belakangan secara asinkron."
                     }
                   },
                   "required": [
                     "status"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session was rejected by WhatsApp (number appears to be blocked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }
@@ -568,7 +607,7 @@
             }
           },
           "429": {
-            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "description": "Rejected by an anti-ban guard. The \"error\" field distinguishes them: \"session_warming_up\" (retry after the warm-up window), \"rate_limited\" (short sliding window), or \"daily_quota_exceeded\" (a new session's ramp-up quota, which only resets at midnight — note the much larger retryAfterMs).",
             "content": {
               "application/json": {
                 "schema": {
@@ -692,18 +731,57 @@
         },
         "responses": {
           "200": {
-            "description": "Image sent",
+            "description": "Image written to the WhatsApp connection",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "status": {
-                      "type": "string"
+                      "type": "string",
+                      "example": "sent",
+                      "description": "\"sent\" berarti pesan berhasil ditulis ke koneksi WhatsApp — bukan konfirmasi bahwa pesan sudah diterima server atau sampai ke penerima. Pantau status sebenarnya lewat GET /messages/{messageId} atau webhook \"message.status\"."
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "example": "3EB0A1B2C3D4E5F6",
+                      "description": "ID pesan WhatsApp. Dipakai untuk melacak status pengiriman. Tidak ada bila WhatsApp tidak mengembalikan ID."
+                    },
+                    "ack": {
+                      "type": "string",
+                      "enum": [
+                        "socket"
+                      ],
+                      "description": "Tingkat konfirmasi yang sudah dicapai saat respons ini dibuat. Selalu \"socket\" — tingkat di atasnya (server/delivered/read) datang belakangan secara asinkron."
                     }
                   },
                   "required": [
                     "status"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session was rejected by WhatsApp (number appears to be blocked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }
@@ -735,7 +813,7 @@
             }
           },
           "429": {
-            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "description": "Rejected by an anti-ban guard. The \"error\" field distinguishes them: \"session_warming_up\" (retry after the warm-up window), \"rate_limited\" (short sliding window), or \"daily_quota_exceeded\" (a new session's ramp-up quota, which only resets at midnight — note the much larger retryAfterMs).",
             "content": {
               "application/json": {
                 "schema": {
@@ -864,18 +942,57 @@
         },
         "responses": {
           "200": {
-            "description": "Document sent",
+            "description": "Document written to the WhatsApp connection",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
                     "status": {
-                      "type": "string"
+                      "type": "string",
+                      "example": "sent",
+                      "description": "\"sent\" berarti pesan berhasil ditulis ke koneksi WhatsApp — bukan konfirmasi bahwa pesan sudah diterima server atau sampai ke penerima. Pantau status sebenarnya lewat GET /messages/{messageId} atau webhook \"message.status\"."
+                    },
+                    "messageId": {
+                      "type": "string",
+                      "example": "3EB0A1B2C3D4E5F6",
+                      "description": "ID pesan WhatsApp. Dipakai untuk melacak status pengiriman. Tidak ada bila WhatsApp tidak mengembalikan ID."
+                    },
+                    "ack": {
+                      "type": "string",
+                      "enum": [
+                        "socket"
+                      ],
+                      "description": "Tingkat konfirmasi yang sudah dicapai saat respons ini dibuat. Selalu \"socket\" — tingkat di atasnya (server/delivered/read) datang belakangan secara asinkron."
                     }
                   },
                   "required": [
                     "status"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Session was rejected by WhatsApp (number appears to be blocked)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "retryAfterMs": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message"
                   ]
                 }
               }
@@ -907,7 +1024,7 @@
             }
           },
           "429": {
-            "description": "Rejected by anti-ban guard (session warming up or rate limit exceeded)",
+            "description": "Rejected by an anti-ban guard. The \"error\" field distinguishes them: \"session_warming_up\" (retry after the warm-up window), \"rate_limited\" (short sliding window), or \"daily_quota_exceeded\" (a new session's ramp-up quota, which only resets at midnight — note the much larger retryAfterMs).",
             "content": {
               "application/json": {
                 "schema": {
@@ -980,6 +1097,120 @@
                   "required": [
                     "error",
                     "message"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whatsapp/messages/{messageId}": {
+      "get": {
+        "tags": [
+          "Messaging"
+        ],
+        "summary": "Get delivery status of a sent message",
+        "description": "Status sebenarnya dari pesan yang dikirim lewat gateway ini, diperbarui dari event WhatsApp. Urutan normal: socket -> pending -> server -> delivered -> read. Status bertahan di \"socket\" berarti WhatsApp tidak pernah mengonfirmasi apa pun. Data disimpan in-memory, jadi hilang saat proses restart dan hanya mencakup MESSAGE_STATE_MAX pesan terakhir.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "3EB0A1B2C3D4E5F6"
+            },
+            "required": true,
+            "name": "messageId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current delivery status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "messageId": {
+                      "type": "string"
+                    },
+                    "sessionId": {
+                      "type": "string"
+                    },
+                    "to": {
+                      "type": "string"
+                    },
+                    "messageType": {
+                      "type": "string",
+                      "enum": [
+                        "text",
+                        "image",
+                        "document"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "socket",
+                        "pending",
+                        "server",
+                        "delivered",
+                        "read",
+                        "played",
+                        "error"
+                      ]
+                    },
+                    "createdAt": {
+                      "type": "number"
+                    },
+                    "updatedAt": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "messageId",
+                    "sessionId",
+                    "to",
+                    "messageType",
+                    "status",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Message is unknown or its record has expired",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Message tracking is disabled (MESSAGE_STATE_MAX=0)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "error"
                   ]
                 }
               }

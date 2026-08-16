@@ -1,7 +1,10 @@
 import wa from '../wa.js'
 import {
+  assertNotBanned,
   assertWarmedUp,
+  assertWithinDailyQuota,
   assertWithinRateLimit,
+  recordSend,
   RecipientNotFoundError,
   randomInt,
   envNum,
@@ -19,11 +22,15 @@ export interface PreSendOptions {
 /**
  * Validasi pra-kirim. Melempar guard error (dipetakan ke status HTTP di
  * app.onError) bila:
+ *  - sesi sudah ditolak WhatsApp (nomor diblokir),
  *  - sesi masih dalam masa warm-up,
- *  - batas laju per sesi terlampaui,
+ *  - batas laju per sesi atau kuota harian terlampaui,
  *  - nomor tujuan tidak terdaftar di WhatsApp (khusus kontak personal).
  */
 export async function assertCanSend(opts: PreSendOptions): Promise<void> {
+  // Diperiksa paling awal: bila nomor sudah diblokir, tidak ada gunanya
+  // menghabiskan kuota atau memanggil WhatsApp sama sekali.
+  assertNotBanned(opts.sessionId)
   assertWarmedUp(opts.sessionId)
 
   // Mengirim ke nomor yang tidak terdaftar adalah salah satu sinyal spam
@@ -37,9 +44,12 @@ export async function assertCanSend(opts: PreSendOptions): Promise<void> {
     if (!exists) throw new RecipientNotFoundError(opts.to)
   }
 
-  // Catat slot rate-limit paling akhir, hanya bila pra-cek lain lolos — agar
-  // probe ke sesi yang belum siap / nomor tidak ada tidak menghabiskan kuota.
+  // Semua pemeriksaan dijalankan lebih dulu, pencatatan baru dilakukan setelah
+  // tidak ada yang menolak — supaya permintaan yang ditolak satu guard tidak
+  // ikut menghabiskan jatah guard lainnya.
   assertWithinRateLimit(opts.sessionId)
+  assertWithinDailyQuota(opts.sessionId)
+  recordSend(opts.sessionId)
 }
 
 /**

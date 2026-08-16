@@ -12,6 +12,12 @@ export interface RetryOptions {
   maxRetries: number
   baseDelay: number
   isRetryable: (err: unknown) => boolean
+  /**
+   * Dipanggil tepat sebelum setiap percobaan ULANG (percobaan ke-2 dan
+   * seterusnya). Dipakai pemanggil untuk mencatat bahwa satu pengiriman nyata
+   * lagi akan menuju WhatsApp — retry bukan peristiwa gratis bagi guard.
+   */
+  onRetry?: (attempt: number) => void
 }
 
 export async function withRetry<T>(
@@ -40,6 +46,7 @@ export async function withRetry<T>(
         const backoff = opts.baseDelay * Math.pow(2, attempt - 1)
         const jitter = Math.random() * opts.baseDelay
         await new Promise((r) => setTimeout(r, backoff + jitter))
+        opts.onRetry?.(attempt + 1)
       }
     }
   }
@@ -52,11 +59,20 @@ export async function withRetry<T>(
 // closed', 'socket hang up') sengaja TIDAK di-retry: mengirim ulang pesan ke
 // koneksi yang baru saja diputus menyerupai hammering dan dapat memperdalam
 // pemblokiran. Koneksi yang putus harus dipulihkan dulu lewat reconnect.
-const RETRYABLE_PATTERNS = [
-  'timeout',
-  'etimedout',
-  'econnreset',
-]
+//
+// Timeout juga dikeluarkan dari daftar secara default karena sifatnya AMBIGU.
+// `sendRawMessage` di Baileys membungkus `ws.send` dalam promiseTimeout, jadi
+// timeout bisa terjadi setelah frame benar-benar masuk ke koneksi — kirim ulang
+// pada kondisi itu menghasilkan pesan ganda di sisi penerima, yang persis
+// dikeluhkan sebagai "kadang terkirim dua kali". Tidak ada cara membedakan
+// timeout-sebelum-terkirim dari timeout-sesudah-terkirim, jadi pilihan yang
+// benar adalah tidak menebak. SEND_RETRY_ON_TIMEOUT=true mengembalikan
+// perilaku lama bagi yang lebih memilih risiko duplikasi daripada kehilangan.
+const RETRY_ON_TIMEOUT = process.env.SEND_RETRY_ON_TIMEOUT === 'true'
+
+const RETRYABLE_PATTERNS = RETRY_ON_TIMEOUT
+  ? ['timeout', 'etimedout', 'econnreset']
+  : ['econnreset']
 
 const NON_RETRYABLE_PATTERNS = ['not exist', 'invalid media', 'validation']
 

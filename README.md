@@ -61,14 +61,17 @@ curl -X POST http://localhost:3000/api/whatsapp/send/text \
   -d '{"sessionId": "my-session", "to": "6281234567890", "text": "Hello!"}'
 ```
 
-> **Heads up:** A freshly connected session has a **warm-up window** (default 5 minutes) during which sends are rejected with `429`, and every recipient is checked with `isExist` first. This is intentional — it lowers the risk of WhatsApp banning the number. See [Anti-ban Guards](#anti-ban-guards).
+> **Heads up:** A **newly paired** number has a **30-minute warm-up window** during which sends are rejected with `429`, plus a gradual daily quota over its first days. Sessions that merely reconnect only wait 1 minute. Every recipient is also checked with `isExist` first. This is intentional — sending immediately after pairing is the single strongest ban trigger for a fresh number. See [Anti-ban Guards](#anti-ban-guards).
+>
+> **Also:** a `200 {"status":"sent"}` response means the message was written to the WhatsApp connection — **not** that it was delivered. Use the returned `messageId` with [Delivery Status](#delivery-status) to find out what actually happened.
 
 ---
 
 ## Why waporta?
 
 - **Multi-device** — uses the latest WhatsApp multi-device protocol via Baileys; no phone needs to stay online
-- **Anti-ban guards** — warm-up window after connect, per-session rate limiting, recipient `isExist` check, and typing simulation to lower the risk of WhatsApp bans
+- **Anti-ban guards** — longer warm-up and a gradual daily quota for freshly paired numbers, per-session rate limiting, recipient `isExist` check, and typing simulation to lower the risk of WhatsApp bans
+- **Real delivery status** — every send returns a `messageId`; track `server`/`delivered`/`read` via API or webhook instead of trusting a bare "sent"
 - **Multi-session** — manage multiple WhatsApp numbers from one server
 - **Lightweight** — minimal dependencies, fast startup, low memory footprint
 - **Dashboard included** — manage sessions, send messages, webhooks, and check numbers from the browser
@@ -209,11 +212,12 @@ Interactive docs: [`https://waporta.net`](https://waporta.net) or `http://localh
 
 ### Messaging
 
-| Method | Path             | Description          |
-| ------ | ---------------- | -------------------- |
-| `POST` | `/send/text`     | Send a text message  |
-| `POST` | `/send/image`    | Send an image        |
-| `POST` | `/send/document` | Send a document/file |
+| Method | Path                    | Description                              |
+| ------ | ----------------------- | ---------------------------------------- |
+| `POST` | `/send/text`            | Send a text message                      |
+| `POST` | `/send/image`           | Send an image                            |
+| `POST` | `/send/document`        | Send a document/file                     |
+| `GET`  | `/messages/:messageId`  | Get real delivery status of a sent message |
 
 ### Utilities
 
@@ -365,13 +369,18 @@ curl -X DELETE http://localhost:3000/api/whatsapp/sessions/my-session/webhooks/a
 
 When a message fails to send due to a transient network error, waporta automatically retries up to **3 times** with exponential backoff and jitter (base 3s). Connection-drop errors are **not** retried — hammering a just-disconnected socket can deepen a ban. If all retries fail, it returns a `502` response and optionally notifies you via email or webhook.
 
+**Timeouts are not retried by default.** Baileys wraps the websocket write in a timeout, so a timeout can fire *after* the frame already reached WhatsApp. Retrying then delivers the same message twice, which is the usual cause of "sometimes it sends twice". There is no way to tell the two cases apart, so waporta does not guess. Set `SEND_RETRY_ON_TIMEOUT=true` if you prefer the risk of duplicates over the risk of a dropped message.
+
 ### Error behavior
 
 | Error type | Example | Behavior |
 | --- | --- | --- |
-| Retryable | Transient network errors (`timeout`, `etimedout`, `econnreset`) | Retry up to 3 times with backoff + jitter |
+| Retryable | `econnreset` | Retry up to 3 times with backoff + jitter |
+| Ambiguous | `timeout`, `etimedout` | Fail immediately by default — may already have been delivered. Opt in with `SEND_RETRY_ON_TIMEOUT=true` |
 | Non-retryable | Connection dropped/closed, session not found, invalid media, validation error | Fail immediately |
-| Guard rejection | Warm-up window, rate limit, unregistered recipient | Return `422`/`429` immediately — **not** retried (see [Anti-ban Guards](#anti-ban-guards)) |
+| Guard rejection | Warm-up window, rate limit, daily quota, unregistered recipient, banned session | Return `403`/`422`/`429` immediately — **not** retried (see [Anti-ban Guards](#anti-ban-guards)) |
+
+A rejected request consumes neither the rate-limit window nor the daily quota — both are only recorded once every guard has passed.
 
 ### Failed delivery response
 
@@ -408,11 +417,23 @@ Webhook payload:
 
 ```json
 {
+  "kind": "send",
   "sessionId": "my-session",
   "to": "6281234567890",
   "messageType": "text",
   "error": "All 3 attempts failed: Session with ID: \"my-session\" Not Ready!",
   "attempts": 3,
+  "timestamp": "2026-03-26T15:10:27.000Z"
+}
+```
+
+The same channels also fire when WhatsApp rejects a session outright (a likely ban). Those payloads carry `"kind": "session"` and have no `to`/`messageType`:
+
+```json
+{
+  "kind": "session",
+  "sessionId": "my-session",
+  "error": "Session rejected by WhatsApp (statusCode=403)",
   "timestamp": "2026-03-26T15:10:27.000Z"
 }
 ```
@@ -428,13 +449,22 @@ To lower the risk of WhatsApp banning a connected number, every send endpoint ru
 
 | Guard | Behavior | Response when blocked |
 | --- | --- | --- |
-| **Warm-up window** | Sends are blocked for a period after a session connects/reconnects — sending right after pairing is a strong ban signal | `429 session_warming_up` + `retryAfterMs` |
+| **Cold warm-up** | A number that has just been paired for the first time is blocked for 30 minutes. This is the case that actually gets numbers banned | `429 session_warming_up` + `retryAfterMs` |
+| **Reconnect warm-up** | A session that already has history only waits 1 minute after reconnecting | `429 session_warming_up` + `retryAfterMs` |
+| **Daily ramp-up** | New sessions get a gradually increasing daily quota (20 → 50 → 100 → 200), then no daily cap | `429 daily_quota_exceeded` + `retryAfterMs` (until midnight) |
 | **Rate limit** | Per-session sliding-window cap on outgoing messages | `429 rate_limited` + `retryAfterMs` |
 | **Recipient check** | Non-group sends are validated with `isExist`; sending to unregistered numbers is a strong spam signal | `422 recipient_not_found` |
 | **Typing simulation** | A randomized "typing" indicator is shown before each send (best-effort) | — |
+| **Banned session** | WhatsApp rejected the session with `403 forbidden` — the number appears blocked | `403 session_banned` |
 | **Session not ready** | Session is reconnecting / unavailable | `503 session_unavailable` |
 
 Group sends (`"isGroup": true`) skip the recipient check.
+
+Note that `429 daily_quota_exceeded` and `429 rate_limited` are deliberately different error codes: the first only clears at midnight, so its `retryAfterMs` can be many hours. Do not sleep blindly on a `429` without checking which one it is.
+
+Session age, the owning number, and the daily counter are persisted in `data/session_health.json`, so restarting the process does not reset a new number's protection — nor does it re-impose a long warm-up on numbers that have been running for months.
+
+**Upgrading from a version without these guards:** on first start, every session that already exists is marked mature exactly once, so a deploy does not suddenly treat your months-old production numbers as freshly paired. Sessions paired after that upgrade get the full protection. Reusing a `sessionId` with a *different* phone number resets its history — the new number is correctly treated as raw.
 
 ### Configuration
 
@@ -442,13 +472,110 @@ All thresholds are environment variables (defaults shown). Set any value to `0` 
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `SEND_WARMUP_MS` | `300000` (5 min) | Block sends for this long after a session connects/reconnects |
+| `SEND_WARMUP_COLD_MS` | `1800000` (30 min) | Block sends for this long after a number is paired for the first time |
+| `SEND_WARMUP_RECONNECT_MS` | `60000` (1 min) | Block sends for this long after an existing session reconnects |
+| `SEND_WARMUP_MS` | — | Legacy. If set, it overrides **both** values above (including `0` to disable warm-up entirely) |
+| `SEND_RAMPUP_DAILY` | `20,50,100,200` | Daily quota for a new session's day 1, 2, 3, … After the list runs out there is no daily cap. Set to `0` to disable |
 | `SEND_RATE_MAX` | `20` | Max messages per session within the rate window |
 | `SEND_RATE_WINDOW_MS` | `60000` (1 min) | Rolling window for the rate limit |
 | `SEND_TYPING_MIN_MS` | `800` | Min typing-indicator duration before each send |
 | `SEND_TYPING_MAX_MS` | `2500` | Max typing-indicator duration before each send |
 
-> These guards lower ban risk but do not eliminate it. Datacenter/VPS IPs and brand-new numbers remain higher-risk — warm up new numbers gradually before sending at volume.
+### Why new numbers get banned
+
+WhatsApp's abuse detection weighs how a number behaves in its first days far more heavily than later. A number that connects through a datacenter IP and immediately messages people it has never spoken to looks exactly like the spam it is designed to catch. In practice:
+
+- Use a number that a human has already used normally for a few days — not a SIM activated an hour ago.
+- Let the first messages be **replies** to people who messaged you, rather than cold outbound.
+- Do not blast unfamiliar numbers on day one, even within the quota.
+- Keep volume growing gradually instead of jumping to full throughput.
+
+> These guards lower ban risk but do not eliminate it. Datacenter/VPS IPs and brand-new numbers remain higher-risk. No gateway configuration can make a cold number safe to blast.
+
+---
+
+## Delivery Status
+
+A `200 {"status":"sent"}` response does **not** mean the message was delivered. Under the hood, Baileys resolves as soon as the frame is written to the websocket — there is no server acknowledgement at that point. That is why a send can look successful and still never arrive.
+
+Every send therefore returns a `messageId`:
+
+```json
+{ "status": "sent", "messageId": "3EB0A1B2C3D4E5F6", "ack": "socket" }
+```
+
+Poll the real status with it:
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  http://localhost:3000/api/whatsapp/messages/3EB0A1B2C3D4E5F6
+```
+
+```json
+{
+  "messageId": "3EB0A1B2C3D4E5F6",
+  "sessionId": "my-session",
+  "to": "6281234567890",
+  "messageType": "text",
+  "status": "delivered",
+  "createdAt": 1755000000000,
+  "updatedAt": 1755000004000
+}
+```
+
+| Status | Meaning |
+| --- | --- |
+| `socket` | Written to the connection. WhatsApp has not confirmed anything yet |
+| `pending` | Queued by WhatsApp |
+| `server` | Accepted by WhatsApp's servers |
+| `delivered` | Delivered to the recipient's device |
+| `read` | Read by the recipient |
+| `played` | Voice note played |
+| `error` | WhatsApp reported a failure |
+
+A message stuck at `socket` is the signature of the "said sent but never arrived" case.
+
+**Limits:** this state is in-memory. It is lost on restart, is not shared across multiple instances, and only covers the last `MESSAGE_STATE_MAX` messages (default 1000) within `MESSAGE_STATE_TTL_MS` (default 1 hour). Set `MESSAGE_STATE_MAX=0` to disable tracking; the endpoint then returns `409 message_state_disabled`.
+
+### Status webhooks (optional)
+
+Set `WEBHOOK_STATUS_EVENTS=true` to also push status changes to your registered session webhooks:
+
+```json
+{
+  "event": "message.status",
+  "sessionId": "my-session",
+  "messageId": "3EB0A1B2C3D4E5F6",
+  "recipient": "6281234567890@s.whatsapp.net",
+  "status": "delivered",
+  "timestamp": 1755000004000
+}
+```
+
+It is **off by default** because a single message produces three or four of these events, multiplying outbound webhook traffic. Existing consumers that only handle `"event": "message.received"` are unaffected either way.
+
+---
+
+## Message Logging (optional)
+
+Off by default. When enabled, waporta appends one JSON line per event to `data/logs/YYYY-MM-DD.jsonl`. Files are rotated daily and anything older than the retention window is deleted. The log is never read back during normal operation, so its cost does not grow with its size.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `MESSAGE_LOG_LEVEL` | `off` | `off`, `meta`, or `full` |
+| `MESSAGE_LOG_RETENTION_DAYS` | `7` | Delete log files older than this |
+| `MESSAGE_LOG_MAX_BYTES` | `10485760` (10 MB) | Stop writing once a day's file exceeds this |
+| `LOG_MESSAGE_PAYLOAD` | `false` | Print the full incoming-message payload to stdout (contains conversation content) |
+
+**`meta`** records metadata only — phone numbers are masked (`6281****7890`) and message content is not stored at all. **`full`** additionally stores message content; use it only when you accept keeping conversation contents on disk.
+
+```json
+{"ts":"2026-08-16T09:12:00.000Z","event":"message.out","sessionId":"my-session","messageId":"3EB0...","peer":"6281****7890","messageType":"text","status":"socket"}
+```
+
+**Cost.** At `meta` level an entry is roughly 200 bytes. At 1000 messages/day that is about 200 KB/day, or ~1.4 MB for the full 7-day retention — small enough to be a non-issue even on a modest VPS. Note that waporta does **not** use SQLite for application data at all; the SQLite database under `wa_credentials/` belongs to the WhatsApp library and only stores authentication credentials.
+
+Writes are fire-and-forget and can never fail a send: if the log cannot be written, it degrades silently after one warning and messaging continues.
 
 ---
 

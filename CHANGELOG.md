@@ -5,6 +5,97 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-08-16
+
+Addresses three recurring user reports: sends reported as successful that never
+arrived, freshly paired numbers getting banned after a single message, and the
+absence of any message trail. No breaking changes to existing API contracts, but
+three defaults change behavior — see "Changed".
+
+### Added
+
+- **Real delivery status.** `/send/*` now returns `messageId` and `ack` alongside
+  the unchanged `status: "sent"`. New endpoint
+  `GET /api/whatsapp/messages/{messageId}` reports the actual state
+  (`socket` → `pending` → `server` → `delivered` → `read`). A message stuck at
+  `socket` is the signature of the "said sent but never arrived" case.
+  State is in-memory (`src/lib/message-state.ts`); see README for its limits.
+- **Direct Baileys event subscription** (`src/lib/wa-events.ts`). `wa-multi-session`
+  discards all but the first element of each `messages.update` batch and never
+  forwards the disconnect reason, so waporta subscribes to `sock.ev` itself via
+  the public `getSessionById()`. No additional `node_modules` patches were needed.
+- **Status webhooks** — opt-in `message.status` event via `WEBHOOK_STATUS_EVENTS=true`.
+  Off by default; a single message produces three or four such events. The
+  existing `message.received` payload is unchanged.
+- **Ban detection.** A session rejected by WhatsApp with `403 forbidden` is
+  recorded persistently, triggers the failure notifier with `"kind": "session"`,
+  and causes further sends to return `403 session_banned` instead of a misleading
+  `503 session_unavailable`. `badSession` (500) is deliberately **not** treated as
+  a ban — in Baileys it is the fallback code for any unrecognized stream error,
+  so acting on it would condemn healthy numbers.
+- **Persistent session health** (`data/session_health.json`) — first-connect time,
+  the owning JID, and daily send counters survive restarts, so guards no longer
+  lose their memory. On the first start after upgrading, sessions that already
+  exist are marked mature exactly once, so a deploy does not treat long-running
+  production numbers as freshly paired. Reusing a `sessionId` with a different
+  phone number resets its history.
+- **Gradual daily quota** for new sessions: `SEND_RAMPUP_DAILY` (default
+  `20,50,100,200`), reported as a distinct `429 daily_quota_exceeded` because it
+  only resets at midnight — unlike `rate_limited`, which clears in seconds.
+- **Optional message log** — `MESSAGE_LOG_LEVEL=off|meta|full`, appended as JSONL
+  to `data/logs/YYYY-MM-DD.jsonl` with daily rotation and 7-day retention. Off by
+  default. At `meta` level, phone numbers are masked and message content is not
+  stored. Roughly 200 KB/day at 1000 messages/day. Write failures degrade
+  silently and can never fail a send.
+- New environment variables: `SEND_WARMUP_COLD_MS`, `SEND_WARMUP_RECONNECT_MS`,
+  `SEND_RAMPUP_DAILY`, `SEND_RETRY_ON_TIMEOUT`, `SEND_MAX_RETRIES`,
+  `SEND_RETRY_BASE_DELAY_MS`, `MESSAGE_STATE_MAX`, `MESSAGE_STATE_TTL_MS`,
+  `WEBHOOK_STATUS_EVENTS`, `MESSAGE_LOG_LEVEL`, `MESSAGE_LOG_RETENTION_DAYS`,
+  `MESSAGE_LOG_MAX_BYTES`, `LOG_MESSAGE_PAYLOAD`.
+
+### Changed
+
+- **Timeouts are no longer retried by default.** Baileys wraps the websocket
+  write in a timeout, so a timeout can fire after the frame already reached
+  WhatsApp — retrying then delivers the message twice. Restore the old behavior
+  with `SEND_RETRY_ON_TIMEOUT=true`.
+- **Warm-up is now two-tier.** A newly paired number waits 30 minutes
+  (`SEND_WARMUP_COLD_MS`); a session that merely reconnects waits 1 minute
+  (`SEND_WARMUP_RECONNECT_MS`) instead of the previous flat 5 minutes. Setting
+  the legacy `SEND_WARMUP_MS` still overrides both, including `0` to disable.
+- **Incoming messages are no longer dumped to stdout in full.** The default log
+  line is now a one-line summary; conversation content is printed only with
+  `LOG_MESSAGE_PAYLOAD=true`.
+- `docker-compose.yml` now forwards the `SEND_*`, `MESSAGE_*`, `DEFAULT_API_KEY`,
+  and logging variables to the container. Previously none of the anti-ban
+  variables were passed through, so they had no effect under Docker.
+
+### Fixed
+
+- `sendWithRetry` no longer discards the result of the send call, which had been
+  throwing away the only identifier linking a request to its delivery status.
+- A request rejected by one guard no longer consumes the rate-limit window or the
+  daily quota; both are recorded only after every check has passed.
+- A corrupt or unreadable `data/session_health.json` no longer throttles a mature
+  gateway to the day-one quota of 20 messages forever. When the store cannot be
+  persisted, session age is unknowable, so the daily quota is skipped and
+  reconnects are no longer treated as first pairings.
+- A malformed store whose `records` is not an array is now rejected at load time
+  instead of failing every `/send/*` request with a 500.
+- `SEND_MAX_RETRIES=0` is treated as a single attempt. It previously skipped the
+  send entirely and failed every request with a 502.
+- Daily quota no longer jumps a tier at midnight. A number paired at 23:55 used to
+  reach the day-two allowance five minutes later; session age now also requires a
+  full 24 hours to elapse.
+- Adoption of pre-existing sessions no longer overwrites session history that was
+  actually read from the store, so a restored or partially written
+  `session_health.json` cannot mark a freshly paired number as 400 days old.
+- Retried sends now consume a rate-limit slot each. One HTTP request could
+  previously issue `SEND_MAX_RETRIES` real sends against a single slot.
+- `GET /api/whatsapp/messages/{messageId}` no longer regresses. Out-of-order
+  `messages.update` batches and acks replayed after a reconnect could move a
+  message back from `read` to `delivered`; status is now monotonic.
+
 ## [3.0.0] - 2026-06-13
 
 This release hardens waporta against WhatsApp account bans and upgrades the

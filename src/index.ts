@@ -16,6 +16,8 @@ import {
   RecipientNotFoundError,
   SessionWarmingUpError,
   RateLimitExceededError,
+  DailyQuotaExceededError,
+  SessionBannedError,
 } from "./lib/session-guard.js";
 
 const require = createRequire(import.meta.url);
@@ -75,9 +77,26 @@ app.onError((err, c) => {
   if (err instanceof RecipientNotFoundError) {
     return c.json({ error: "recipient_not_found", message: err.message }, 422);
   }
+  // Nomor ditolak WhatsApp. Dibedakan dari 503 karena mencoba lagi nanti tidak
+  // akan menolong — sesi harus dibuat ulang dengan nomor lain.
+  if (err instanceof SessionBannedError) {
+    return c.json({ error: "session_banned", message: err.message }, 403);
+  }
   if (err instanceof SessionWarmingUpError) {
     return c.json(
       { error: "session_warming_up", message: err.message, retryAfterMs: err.remainingMs },
+      429,
+    );
+  }
+  // Dibedakan dari rate_limited: pemulihannya bukan hitungan detik melainkan
+  // sampai tengah malam, jadi klien perlu bisa mengenalinya.
+  if (err instanceof DailyQuotaExceededError) {
+    return c.json(
+      {
+        error: "daily_quota_exceeded",
+        message: err.message,
+        retryAfterMs: err.retryAfterMs,
+      },
       429,
     );
   }

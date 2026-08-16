@@ -1,4 +1,9 @@
-import type { IncomingMessageEvent, WebhookMessagePayload, WebhookDispatchResult } from './types.js'
+import type {
+  IncomingMessageEvent,
+  WebhookMessagePayload,
+  WebhookStatusPayload,
+  WebhookDispatchResult,
+} from './types.js'
 import type { WebhookUrlManager } from './manager.js'
 
 const SECRET_KEY_RE = /^(authorization|x-api-key|apikey|token|password|secret)$/i
@@ -31,17 +36,41 @@ export class WebhookEventDispatcher {
   }
 
   async dispatch(event: IncomingMessageEvent): Promise<WebhookDispatchResult> {
-    const result: WebhookDispatchResult = {
+    return this.post(event.sessionId, this.buildPayload(event))
+  }
+
+  /**
+   * Kirim peristiwa perubahan status pengiriman. Dipanggil dari lib/wa-events.ts
+   * dan hanya bila WEBHOOK_STATUS_EVENTS aktif — peristiwa ini bisa muncul 3-4
+   * kali per pesan, jadi tidak pantas dinyalakan tanpa persetujuan.
+   */
+  async dispatchStatus(
+    event: Omit<WebhookStatusPayload, 'event' | 'timestamp'>,
+  ): Promise<WebhookDispatchResult> {
+    return this.post(event.sessionId, {
+      event: 'message.status',
       sessionId: event.sessionId,
+      messageId: event.messageId,
+      recipient: event.recipient,
+      status: event.status,
+      timestamp: Date.now(),
+    })
+  }
+
+  private async post(
+    sessionId: string,
+    payload: WebhookMessagePayload | WebhookStatusPayload,
+  ): Promise<WebhookDispatchResult> {
+    const result: WebhookDispatchResult = {
+      sessionId,
       attempted: 0,
       delivered: 0,
       failed: [],
     }
     try {
-      const webhooks = this.manager.listEnabledForSession(event.sessionId)
+      const webhooks = this.manager.listEnabledForSession(sessionId)
       if (webhooks.length === 0) return result
 
-      const payload = this.buildPayload(event)
       const body = JSON.stringify(payload)
       result.attempted = webhooks.length
 
@@ -71,13 +100,13 @@ export class WebhookEventDispatcher {
         } else {
           const r = outcome.reason as { webhookId: string; url: string; error: string; status?: number }
           result.failed.push(r)
-          console.error(`[webhook-dispatch] failed sessionId=${event.sessionId} webhookId=${r.webhookId} error=${r.error}`)
+          console.error(`[webhook-dispatch] failed sessionId=${sessionId} webhookId=${r.webhookId} error=${r.error}`)
         }
       }
 
       if (result.failed.length === result.attempted) {
         console.error(
-          `[webhook-dispatch] all ${result.attempted} webhooks failed for sessionId=${event.sessionId}`,
+          `[webhook-dispatch] all ${result.attempted} webhooks failed for sessionId=${sessionId}`,
         )
       }
     } catch (err) {

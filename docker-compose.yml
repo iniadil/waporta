@@ -19,6 +19,28 @@ services:
       - SMTP_FROM=${SMTP_FROM:-waporta@localhost}
       - NOTIFY_EMAIL=${NOTIFY_EMAIL:-}
       - NOTIFY_WEBHOOK_URL=${NOTIFY_WEBHOOK_URL:-}
+      - DEFAULT_API_KEY=${DEFAULT_API_KEY:-}
+      # Anti-ban guards. Dibiarkan kosong = pakai default aplikasi.
+      - SEND_WARMUP_MS=${SEND_WARMUP_MS:-}
+      - SEND_WARMUP_COLD_MS=${SEND_WARMUP_COLD_MS:-}
+      - SEND_WARMUP_RECONNECT_MS=${SEND_WARMUP_RECONNECT_MS:-}
+      - SEND_RATE_MAX=${SEND_RATE_MAX:-}
+      - SEND_RATE_WINDOW_MS=${SEND_RATE_WINDOW_MS:-}
+      - SEND_RAMPUP_DAILY=${SEND_RAMPUP_DAILY:-}
+      - SEND_TYPING_MIN_MS=${SEND_TYPING_MIN_MS:-}
+      - SEND_TYPING_MAX_MS=${SEND_TYPING_MAX_MS:-}
+      # Retry pengiriman.
+      - SEND_RETRY_ON_TIMEOUT=${SEND_RETRY_ON_TIMEOUT:-}
+      - SEND_MAX_RETRIES=${SEND_MAX_RETRIES:-}
+      - SEND_RETRY_BASE_DELAY_MS=${SEND_RETRY_BASE_DELAY_MS:-}
+      # Pelacakan status, webhook status, dan jejak pesan.
+      - MESSAGE_STATE_MAX=${MESSAGE_STATE_MAX:-}
+      - MESSAGE_STATE_TTL_MS=${MESSAGE_STATE_TTL_MS:-}
+      - WEBHOOK_STATUS_EVENTS=${WEBHOOK_STATUS_EVENTS:-}
+      - MESSAGE_LOG_LEVEL=${MESSAGE_LOG_LEVEL:-}
+      - MESSAGE_LOG_RETENTION_DAYS=${MESSAGE_LOG_RETENTION_DAYS:-}
+      - MESSAGE_LOG_MAX_BYTES=${MESSAGE_LOG_MAX_BYTES:-}
+      - LOG_MESSAGE_PAYLOAD=${LOG_MESSAGE_PAYLOAD:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
